@@ -12,6 +12,16 @@ on:
       - main
       - develop
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override version (e.g., 0.0.1-beta.5+5+17fcd37)'
+        required: false
+        type: string
+      force_release:
+        description: 'Force create release even if not on main/release branch'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -50,20 +60,52 @@ jobs:
       - name: Calculate Version
         id: gitversion
         run: |
-          # Use our own gitversion implementation
-          VERSION=$(./gitversion)
-          VERSION_JSON=$(./gitversion --output json)
-          
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "semver=$(echo "$VERSION_JSON" | jq -r '.SemVer')" >> $GITHUB_OUTPUT
-          echo "major=$(echo "$VERSION_JSON" | jq -r '.Major')" >> $GITHUB_OUTPUT
-          echo "minor=$(echo "$VERSION_JSON" | jq -r '.Minor')" >> $GITHUB_OUTPUT
-          echo "patch=$(echo "$VERSION_JSON" | jq -r '.Patch')" >> $GITHUB_OUTPUT
-          echo "prerelease=$(echo "$VERSION_JSON" | jq -r '.PreReleaseTag // empty')" >> $GITHUB_OUTPUT
-          
-          echo "Calculated version: $VERSION"
-          echo "Version details:"
-          echo "$VERSION_JSON" | jq .
+          # Check if version is provided via workflow dispatch
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using provided version: $VERSION"
+            
+            # Parse version components (basic parsing for override)
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3 | cut -d- -f1)
+            PRERELEASE=""
+            if [[ "$VERSION" == *"-"* ]]; then
+              PRERELEASE=$(echo "$VERSION" | cut -d- -f2 | cut -d+ -f1)
+            fi
+            
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "semver=$VERSION" >> $GITHUB_OUTPUT
+            echo "major=$MAJOR" >> $GITHUB_OUTPUT
+            echo "minor=$MINOR" >> $GITHUB_OUTPUT
+            echo "patch=$PATCH" >> $GITHUB_OUTPUT
+            echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+          else
+            # Try to use gitversion from PATH first, fallback to building our own
+            if command -v gitversion >/dev/null 2>&1; then
+              echo "Using gitversion from PATH..."
+              VERSION=$(gitversion)
+              VERSION_JSON=$(gitversion --output json)
+            else
+              echo "Building gitversion to calculate version..."
+              go mod tidy
+              go build -o gitversion ./cmd
+              
+              VERSION=$(./gitversion)
+              VERSION_JSON=$(./gitversion --output json)
+            fi
+            
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "semver=$(echo "$VERSION_JSON" | jq -r '.SemVer')" >> $GITHUB_OUTPUT
+            echo "major=$(echo "$VERSION_JSON" | jq -r '.Major')" >> $GITHUB_OUTPUT
+            echo "minor=$(echo "$VERSION_JSON" | jq -r '.Minor')" >> $GITHUB_OUTPUT
+            echo "patch=$(echo "$VERSION_JSON" | jq -r '.Patch')" >> $GITHUB_OUTPUT
+            echo "prerelease=$(echo "$VERSION_JSON" | jq -r '.PreReleaseTag // empty')" >> $GITHUB_OUTPUT
+            
+            echo "Calculated version: $VERSION"
+            echo "Version details:"
+            echo "$VERSION_JSON" | jq .
+          fi
 
       - name: Check if should release
         id: release_check
@@ -74,7 +116,11 @@ jobs:
           # 1. Push to main branch (stable release)
           # 2. Push to release/* branch (release candidate)
           # 3. Manual workflow dispatch
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          # 4. Force release via workflow input
+          if [[ "${{ github.event.inputs.force_release }}" == "true" ]]; then
+            SHOULD_RELEASE="true"
+            echo "Release forced via workflow input"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
             if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
               SHOULD_RELEASE="true"
               echo "Release triggered by push to main branch"
@@ -83,8 +129,11 @@ jobs:
               echo "Release triggered by push to release branch"
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            SHOULD_RELEASE="true"
-            echo "Release triggered by manual workflow dispatch"
+            # Only release on manual dispatch if version is provided or on release/main branches
+            if [[ -n "${{ github.event.inputs.version }}" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+              SHOULD_RELEASE="true"
+              echo "Release triggered by manual workflow dispatch"
+            fi
           fi
           
           echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
