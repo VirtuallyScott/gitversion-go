@@ -235,7 +235,7 @@ jobs:
           cat ${{ matrix.binary_name }}.sha256
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitversion-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
@@ -294,7 +294,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
