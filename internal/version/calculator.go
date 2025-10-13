@@ -20,13 +20,13 @@ const (
 type BranchType string
 
 const (
-	Main     BranchType = "main"
-	Develop  BranchType = "develop"
-	Feature  BranchType = "feature"
-	Release  BranchType = "release"
-	Hotfix   BranchType = "hotfix"
-	Support  BranchType = "support"
-	Unknown  BranchType = "unknown"
+	Main    BranchType = "main"
+	Develop BranchType = "develop"
+	Feature BranchType = "feature"
+	Release BranchType = "release"
+	Hotfix  BranchType = "hotfix"
+	Support BranchType = "support"
+	Unknown BranchType = "unknown"
 )
 
 type Calculator struct {
@@ -65,7 +65,7 @@ func (c *Calculator) CalculateVersion(branch string, workflow WorkflowType, forc
 	}
 
 	branchType := c.getBranchType(branch, workflow)
-	
+
 	var increment git.IncrementType
 	if forceIncrement != "" {
 		switch forceIncrement {

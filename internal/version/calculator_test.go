@@ -8,7 +8,7 @@ import (
 
 func TestGetBranchType(t *testing.T) {
 	calculator := &Calculator{}
-	
+
 	tests := []struct {
 		name     string
 		branch   string
@@ -64,7 +64,7 @@ func TestGetBranchType(t *testing.T) {
 			workflow: GitFlow,
 			expected: Unknown,
 		},
-		
+
 		// GitHubFlow tests
 		{
 			name:     "GitHubFlow main branch",
@@ -84,7 +84,7 @@ func TestGetBranchType(t *testing.T) {
 			workflow: GitHubFlow,
 			expected: Feature,
 		},
-		
+
 		// Trunk tests
 		{
 			name:     "Trunk any branch",
@@ -106,7 +106,7 @@ func TestGetBranchType(t *testing.T) {
 
 func TestExtractFeatureName(t *testing.T) {
 	calculator := &Calculator{}
-	
+
 	tests := []struct {
 		name     string
 		branch   string
@@ -146,78 +146,78 @@ func TestExtractFeatureName(t *testing.T) {
 
 func TestApplyBranchSpecificVersioning(t *testing.T) {
 	calculator := &Calculator{}
-	
+
 	tests := []struct {
-		name              string
-		branchType        BranchType
-		branch            string
-		commitCount       int
-		sha               string
+		name               string
+		branchType         BranchType
+		branch             string
+		commitCount        int
+		sha                string
 		expectedPreRelease string
-		expectedBuild     string
+		expectedBuild      string
 	}{
 		{
-			name:              "Main branch",
-			branchType:        Main,
-			branch:            "main",
-			commitCount:       5,
-			sha:               "abc123",
+			name:               "Main branch",
+			branchType:         Main,
+			branch:             "main",
+			commitCount:        5,
+			sha:                "abc123",
 			expectedPreRelease: "",
-			expectedBuild:     "5+abc123",
+			expectedBuild:      "5+abc123",
 		},
 		{
-			name:              "Develop branch with commits",
-			branchType:        Develop,
-			branch:            "develop",
-			commitCount:       10,
-			sha:               "def456",
+			name:               "Develop branch with commits",
+			branchType:         Develop,
+			branch:             "develop",
+			commitCount:        10,
+			sha:                "def456",
 			expectedPreRelease: "alpha.10",
-			expectedBuild:     "10+def456",
+			expectedBuild:      "10+def456",
 		},
 		{
-			name:              "Develop branch without commits",
-			branchType:        Develop,
-			branch:            "develop",
-			commitCount:       0,
-			sha:               "ghi789",
+			name:               "Develop branch without commits",
+			branchType:         Develop,
+			branch:             "develop",
+			commitCount:        0,
+			sha:                "ghi789",
 			expectedPreRelease: "",
-			expectedBuild:     "0+ghi789",
+			expectedBuild:      "0+ghi789",
 		},
 		{
-			name:              "Feature branch with commits",
-			branchType:        Feature,
-			branch:            "feature/user-auth",
-			commitCount:       3,
-			sha:               "jkl012",
+			name:               "Feature branch with commits",
+			branchType:         Feature,
+			branch:             "feature/user-auth",
+			commitCount:        3,
+			sha:                "jkl012",
 			expectedPreRelease: "user-auth.3",
-			expectedBuild:     "3+jkl012",
+			expectedBuild:      "3+jkl012",
 		},
 		{
-			name:              "Release branch with commits",
-			branchType:        Release,
-			branch:            "release/1.2.0",
-			commitCount:       2,
-			sha:               "mno345",
+			name:               "Release branch with commits",
+			branchType:         Release,
+			branch:             "release/1.2.0",
+			commitCount:        2,
+			sha:                "mno345",
 			expectedPreRelease: "beta.2",
-			expectedBuild:     "2+mno345",
+			expectedBuild:      "2+mno345",
 		},
 		{
-			name:              "Hotfix branch with commits",
-			branchType:        Hotfix,
-			branch:            "hotfix/critical",
-			commitCount:       1,
-			sha:               "pqr678",
+			name:               "Hotfix branch with commits",
+			branchType:         Hotfix,
+			branch:             "hotfix/critical",
+			commitCount:        1,
+			sha:                "pqr678",
 			expectedPreRelease: "hotfix.1",
-			expectedBuild:     "1+pqr678",
+			expectedBuild:      "1+pqr678",
 		},
 		{
-			name:              "Unknown branch with commits",
-			branchType:        Unknown,
-			branch:            "custom-branch",
-			commitCount:       4,
-			sha:               "stu901",
+			name:               "Unknown branch with commits",
+			branchType:         Unknown,
+			branch:             "custom-branch",
+			commitCount:        4,
+			sha:                "stu901",
 			expectedPreRelease: "custom-branch.4",
-			expectedBuild:     "4+stu901",
+			expectedBuild:      "4+stu901",
 		},
 	}
 
@@ -225,7 +225,7 @@ func TestApplyBranchSpecificVersioning(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			version := &semver.Version{Major: 1, Minor: 2, Patch: 3}
 			calculator.applyBranchSpecificVersioning(version, tt.branch, tt.branchType, tt.commitCount, tt.sha)
-			
+
 			if version.PreRelease != tt.expectedPreRelease {
 				t.Errorf("PreRelease = %s, want %s", version.PreRelease, tt.expectedPreRelease)
 			}
