@@ -1,0 +1,93 @@
+# Coverage and testing
+*.out
+*.test
+coverage/
+.nyc_output
+
+# Environment variables
+.env
+.env.development.local
+.env.local
+.env.production.local
+.env.test.local
+
+# Go binaries and build artifacts
+*.dll
+*.dylib
+*.exe
+*.exe~
+*.so
+/bin/
+/build/
+/dist/
+/pkg/
+.cache/
+go.work
+# /go/pkg/mod/
+# vendor/
+
+# IDE and editor files
+*.elc
+*.iml
+*.ipr
+*.iws
+*.swo
+*.swp
+*.vsix
+*~
+\#*\#
+.directory
+.emacs.desktop
+.emacs.desktop.lock
+.history/
+.idea/
+.\#*
+auto-save-list
+tramp
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/*.code-snippets
+
+# Linux
+*~
+.nfs*
+.Trash-*
+
+# Logs and runtime data
+*.log
+*.pid
+*.pid.lock
+*.seed
+pids
+
+# macOS
+._*
+.apdisk
+.AppleDB
+.AppleDesktop
+.com.apple.timemachine.donotpresent
+.DocumentRevisions-V100
+.DS_Store
+.DS_Store?
+.fseventsd
+.LSOverride
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+Icon
+Network Trash Folder
+Temporary Items
+
+# OS generated files
+$RECYCLE.BIN/
+Desktop.ini
+ehthumbs.db
+Thumbs.db
+
+# Temporary files and directories
+temp/
+tmp/

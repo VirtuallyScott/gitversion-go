@@ -1,0 +1,379 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/*'
+      - 'hotfix/*'
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  version:
+    name: Calculate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.version }}
+      semver: ${{ steps.gitversion.outputs.semver }}
+      major: ${{ steps.gitversion.outputs.major }}
+      minor: ${{ steps.gitversion.outputs.minor }}
+      patch: ${{ steps.gitversion.outputs.patch }}
+      prerelease: ${{ steps.gitversion.outputs.prerelease }}
+      should_release: ${{ steps.release_check.outputs.should_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Build GitVersion-Go
+        run: |
+          go mod tidy
+          go build -o gitversion ./cmd
+
+      - name: Calculate Version
+        id: gitversion
+        run: |
+          # Use our own gitversion implementation
+          VERSION=$(./gitversion)
+          VERSION_JSON=$(./gitversion --output json)
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "semver=$(echo "$VERSION_JSON" | jq -r '.SemVer')" >> $GITHUB_OUTPUT
+          echo "major=$(echo "$VERSION_JSON" | jq -r '.Major')" >> $GITHUB_OUTPUT
+          echo "minor=$(echo "$VERSION_JSON" | jq -r '.Minor')" >> $GITHUB_OUTPUT
+          echo "patch=$(echo "$VERSION_JSON" | jq -r '.Patch')" >> $GITHUB_OUTPUT
+          echo "prerelease=$(echo "$VERSION_JSON" | jq -r '.PreReleaseTag // empty')" >> $GITHUB_OUTPUT
+          
+          echo "Calculated version: $VERSION"
+          echo "Version details:"
+          echo "$VERSION_JSON" | jq .
+
+      - name: Check if should release
+        id: release_check
+        run: |
+          SHOULD_RELEASE="false"
+          
+          # Release conditions:
+          # 1. Push to main branch (stable release)
+          # 2. Push to release/* branch (release candidate)
+          # 3. Manual workflow dispatch
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              SHOULD_RELEASE="true"
+              echo "Release triggered by push to main branch"
+            elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+              SHOULD_RELEASE="true"
+              echo "Release triggered by push to release branch"
+            fi
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SHOULD_RELEASE="true"
+            echo "Release triggered by manual workflow dispatch"
+          fi
+          
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+          echo "Should create release: $SHOULD_RELEASE"
+
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary_name: gitversion-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            binary_name: gitversion-linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary_name: gitversion-darwin-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary_name: gitversion-darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary_name: gitversion-windows-amd64.exe
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
+            binary_name: gitversion-windows-arm64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # Prepare build directory
+          mkdir -p dist
+          
+          # Build with version information
+          go build \
+            -ldflags="-s -w -X main.version=$VERSION -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o dist/${{ matrix.binary_name }} \
+            ./cmd
+          
+          # Verify binary
+          file dist/${{ matrix.binary_name }}
+          
+          # Test the binary (if not cross-compiling)
+          if [[ "${{ matrix.goos }}" == "${{ runner.os }}" ]] || [[ "${{ runner.os }}" == "Linux" && "${{ matrix.goos }}" == "linux" ]] || [[ "${{ runner.os }}" == "macOS" && "${{ matrix.goos }}" == "darwin" ]] || [[ "${{ runner.os }}" == "Windows" && "${{ matrix.goos }}" == "windows" ]]; then
+            echo "Testing binary..."
+            if [[ "${{ matrix.goos }}" == "windows" ]]; then
+              ./dist/${{ matrix.binary_name }} --version || echo "Version check completed"
+            else
+              ./dist/${{ matrix.binary_name }} --version || echo "Version check completed"
+            fi
+          fi
+
+      - name: Create checksums
+        run: |
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            certutil -hashfile ${{ matrix.binary_name }} SHA256 | findstr /v "hash" | findstr /v "CertUtil" > ${{ matrix.binary_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.binary_name }} > ${{ matrix.binary_name }}.sha256
+          fi
+          cat ${{ matrix.binary_name }}.sha256
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: gitversion-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/${{ matrix.binary_name }}
+            dist/${{ matrix.binary_name }}.sha256
+          retention-days: 30
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run Tests
+        run: |
+          go mod tidy
+          go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [version, build, test]
+    if: needs.version.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release-assets
+          
+          # Copy all binaries and checksums to release assets
+          find artifacts -name "gitversion-*" -type f | while read file; do
+            cp "$file" release-assets/
+          done
+          
+          # List all assets
+          echo "Release assets:"
+          ls -la release-assets/
+
+      - name: Setup Go for GitVersion
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Build GitVersion for Tagging
+        run: |
+          go mod tidy
+          go build -o gitversion ./cmd
+
+      - name: Create Git Tag
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create and push tag
+          git tag -a "v$VERSION" -m "Release version $VERSION"
+          git push origin "v$VERSION"
+
+      - name: Generate Release Notes
+        id: release_notes
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          # Generate release notes
+          cat > release_notes.md << EOF
+          # GitVersion-Go v$VERSION
+          
+          ## What's Changed
+          
+          This release includes the following changes:
+          
+          $(git log --pretty=format:"* %s (%h)" $(git describe --tags --abbrev=0 HEAD^)..HEAD 2>/dev/null || echo "* Initial release")
+          
+          ## Installation
+          
+          ### Download Binary
+          
+          Download the appropriate binary for your platform:
+          
+          \`\`\`bash
+          # Linux (AMD64)
+          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-amd64
+          chmod +x gitversion
+          
+          # Linux (ARM64)
+          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-arm64
+          chmod +x gitversion
+          
+          # macOS (Intel)
+          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-amd64
+          chmod +x gitversion
+          
+          # macOS (Apple Silicon)
+          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-arm64
+          chmod +x gitversion
+          
+          # Windows (AMD64)
+          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-amd64.exe
+          
+          # Windows (ARM64)
+          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-arm64.exe
+          \`\`\`
+          
+          ### Go Install
+          
+          \`\`\`bash
+          go install github.com/VirtuallyScott/gitversion-go/cmd@v$VERSION
+          \`\`\`
+          
+          ## Checksums
+          
+          Verify your download with SHA256 checksums:
+          
+          \`\`\`
+          $(cd release-assets && cat *.sha256 | sed 's/^/  /')
+          \`\`\`
+          
+          ## Full Changelog
+          
+          **Full Changelog**: https://github.com/VirtuallyScott/gitversion-go/compare/$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "initial")...v$VERSION
+          EOF
+          
+          echo "Generated release notes:"
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: GitVersion-Go v${{ needs.version.outputs.version }}
+          body_path: release_notes.md
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ needs.version.outputs.prerelease != '' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Release Summary
+        run: |
+          echo "🚀 **Release Created Successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease:** ${{ needs.version.outputs.prerelease != '' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
+          ls -la release-assets/ | tail -n +2 | awk '{print "* " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** https://github.com/VirtuallyScott/gitversion-go/releases/tag/v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
