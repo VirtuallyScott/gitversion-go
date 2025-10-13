@@ -51,11 +51,13 @@ jobs:
         with:
           go-version: '1.21'
           cache: true
+        if: github.event.inputs.version == ''
 
       - name: Build GitVersion-Go
         run: |
-          go mod tidy
-          go build -o gitversion ./cmd
+          # Build directly without tidying to avoid external dependency resolution
+          go build -mod=readonly -o gitversion ./cmd
+        if: github.event.inputs.version == ''
 
       - name: Calculate Version
         id: gitversion
