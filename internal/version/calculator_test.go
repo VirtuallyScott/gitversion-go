@@ -3,7 +3,7 @@ package version
 import (
 	"testing"
 
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/pkg/semver"
+	"github.com/VirtuallyScott/gitversion-go/pkg/semver"
 )
 
 func TestGetBranchType(t *testing.T) {

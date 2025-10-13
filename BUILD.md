@@ -19,8 +19,8 @@ This guide covers building, testing, and developing the GitVersion-Go implementa
 
 ```bash
 # Clone the repository
-git clone https://github.com/VirtuallyScott/battle-tested-devops.git
-cd battle-tested-devops/gitversion-go
+git clone https://github.com/VirtuallyScott/gitversion-go.git
+cd gitversion-go
 
 # Download dependencies
 go mod tidy
@@ -149,8 +149,8 @@ make quality
 
 ```bash
 # Clone and setup
-git clone https://github.com/VirtuallyScott/battle-tested-devops.git
-cd battle-tested-devops/gitversion-go
+git clone https://github.com/VirtuallyScott/gitversion-go.git
+cd gitversion-go
 
 # Install dependencies
 go mod tidy
@@ -200,7 +200,7 @@ cp build/gitversion /usr/local/bin/
 ### Using Go Install
 
 ```bash
-go install github.com/VirtuallyScott/battle-tested-devops/gitversion-go/cmd@latest
+go install github.com/VirtuallyScott/gitversion-go/cmd@latest
 ```
 
 ## Cross-Platform Builds

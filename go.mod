@@ -1,4 +1,4 @@
-module github.com/VirtuallyScott/battle-tested-devops/gitversion-go
+module github.com/VirtuallyScott/gitversion-go
 
 go 1.21
 

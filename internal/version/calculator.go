@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/internal/git"
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/pkg/config"
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/pkg/semver"
+	"github.com/VirtuallyScott/gitversion-go/internal/git"
+	"github.com/VirtuallyScott/gitversion-go/pkg/config"
+	"github.com/VirtuallyScott/gitversion-go/pkg/semver"
 )
 
 type WorkflowType string

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/internal/version"
-	"github.com/VirtuallyScott/battle-tested-devops/gitversion-go/pkg/gitversion"
+	"github.com/VirtuallyScott/gitversion-go/internal/version"
+	"github.com/VirtuallyScott/gitversion-go/pkg/gitversion"
 )
 
 const (
