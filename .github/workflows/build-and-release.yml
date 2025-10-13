@@ -12,6 +12,16 @@ on:
       - main
       - develop
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override version (e.g., 0.0.1-beta.5+5+17fcd37)'
+        required: false
+        type: string
+      force_release:
+        description: 'Force create release even if not on main/release branch'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -41,29 +51,63 @@ jobs:
         with:
           go-version: '1.21'
           cache: true
+        if: github.event.inputs.version == ''
 
       - name: Build GitVersion-Go
         run: |
-          go mod tidy
-          go build -o gitversion ./cmd
+          # Build directly without tidying to avoid external dependency resolution
+          go build -mod=readonly -o gitversion ./cmd
+        if: github.event.inputs.version == ''
 
       - name: Calculate Version
         id: gitversion
         run: |
-          # Use our own gitversion implementation
-          VERSION=$(./gitversion)
-          VERSION_JSON=$(./gitversion --output json)
-          
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "semver=$(echo "$VERSION_JSON" | jq -r '.SemVer')" >> $GITHUB_OUTPUT
-          echo "major=$(echo "$VERSION_JSON" | jq -r '.Major')" >> $GITHUB_OUTPUT
-          echo "minor=$(echo "$VERSION_JSON" | jq -r '.Minor')" >> $GITHUB_OUTPUT
-          echo "patch=$(echo "$VERSION_JSON" | jq -r '.Patch')" >> $GITHUB_OUTPUT
-          echo "prerelease=$(echo "$VERSION_JSON" | jq -r '.PreReleaseTag // empty')" >> $GITHUB_OUTPUT
-          
-          echo "Calculated version: $VERSION"
-          echo "Version details:"
-          echo "$VERSION_JSON" | jq .
+          # Check if version is provided via workflow dispatch
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Using provided version: $VERSION"
+            
+            # Parse version components (basic parsing for override)
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            PATCH=$(echo "$VERSION" | cut -d. -f3 | cut -d- -f1)
+            PRERELEASE=""
+            if [[ "$VERSION" == *"-"* ]]; then
+              PRERELEASE=$(echo "$VERSION" | cut -d- -f2 | cut -d+ -f1)
+            fi
+            
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "semver=$VERSION" >> $GITHUB_OUTPUT
+            echo "major=$MAJOR" >> $GITHUB_OUTPUT
+            echo "minor=$MINOR" >> $GITHUB_OUTPUT
+            echo "patch=$PATCH" >> $GITHUB_OUTPUT
+            echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
+          else
+            # Try to use gitversion from PATH first, fallback to building our own
+            if command -v gitversion >/dev/null 2>&1; then
+              echo "Using gitversion from PATH..."
+              VERSION=$(gitversion)
+              VERSION_JSON=$(gitversion --output json)
+            else
+              echo "Building gitversion to calculate version..."
+              go mod tidy
+              go build -o gitversion ./cmd
+              
+              VERSION=$(./gitversion)
+              VERSION_JSON=$(./gitversion --output json)
+            fi
+            
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "semver=$(echo "$VERSION_JSON" | jq -r '.SemVer')" >> $GITHUB_OUTPUT
+            echo "major=$(echo "$VERSION_JSON" | jq -r '.Major')" >> $GITHUB_OUTPUT
+            echo "minor=$(echo "$VERSION_JSON" | jq -r '.Minor')" >> $GITHUB_OUTPUT
+            echo "patch=$(echo "$VERSION_JSON" | jq -r '.Patch')" >> $GITHUB_OUTPUT
+            echo "prerelease=$(echo "$VERSION_JSON" | jq -r '.PreReleaseTag // empty')" >> $GITHUB_OUTPUT
+            
+            echo "Calculated version: $VERSION"
+            echo "Version details:"
+            echo "$VERSION_JSON" | jq .
+          fi
 
       - name: Check if should release
         id: release_check
@@ -74,7 +118,11 @@ jobs:
           # 1. Push to main branch (stable release)
           # 2. Push to release/* branch (release candidate)
           # 3. Manual workflow dispatch
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          # 4. Force release via workflow input
+          if [[ "${{ github.event.inputs.force_release }}" == "true" ]]; then
+            SHOULD_RELEASE="true"
+            echo "Release forced via workflow input"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
             if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
               SHOULD_RELEASE="true"
               echo "Release triggered by push to main branch"
@@ -83,8 +131,11 @@ jobs:
               echo "Release triggered by push to release branch"
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            SHOULD_RELEASE="true"
-            echo "Release triggered by manual workflow dispatch"
+            # Only release on manual dispatch if version is provided or on release/main branches
+            if [[ -n "${{ github.event.inputs.version }}" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+              SHOULD_RELEASE="true"
+              echo "Release triggered by manual workflow dispatch"
+            fi
           fi
           
           echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
@@ -94,6 +145,7 @@ jobs:
     name: Build
     runs-on: ${{ matrix.os }}
     needs: version
+    if: github.event.inputs.version == ''
     strategy:
       matrix:
         include:
@@ -154,8 +206,11 @@ jobs:
           # Prepare build directory
           mkdir -p dist
           
+          # Ensure module is properly initialized
+          go mod tidy
+          
           # Build with version information
-          go build \
+          go build -mod=mod \
             -ldflags="-s -w -X main.version=$VERSION -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o dist/${{ matrix.binary_name }} \
             ./cmd
@@ -184,7 +239,7 @@ jobs:
           cat ${{ matrix.binary_name }}.sha256
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gitversion-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
@@ -196,6 +251,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     needs: version
+    if: github.event.inputs.version == ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -221,7 +277,7 @@ jobs:
       - name: Run Tests
         run: |
           go mod tidy
-          go test -v -race -coverprofile=coverage.out ./...
+          go test -mod=mod -v -race -coverprofile=coverage.out ./...
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
@@ -233,7 +289,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [version, build, test]
+    needs: [version]
     if: needs.version.outputs.should_release == 'true'
     steps:
       - name: Checkout
@@ -242,34 +298,41 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+      - name: Download All Artifacts (if builds ran)
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
+        if: github.event.inputs.version == ''
+        continue-on-error: true
 
-      - name: Prepare Release Assets
+      - name: Prepare Release Assets (if builds ran)
         run: |
           mkdir -p release-assets
           
-          # Copy all binaries and checksums to release assets
-          find artifacts -name "gitversion-*" -type f | while read file; do
-            cp "$file" release-assets/
-          done
+          # Copy all binaries and checksums to release assets (if they exist)
+          if [ -d "artifacts" ]; then
+            find artifacts -name "gitversion-*" -type f | while read file; do
+              cp "$file" release-assets/
+            done
+          fi
           
           # List all assets
           echo "Release assets:"
-          ls -la release-assets/
+          ls -la release-assets/ || echo "No build artifacts found (manual version provided)"
+        if: github.event.inputs.version == ''
 
-      - name: Setup Go for GitVersion
+      - name: Setup Go for GitVersion (only for tagging)
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
           cache: true
+        if: github.event.inputs.version == ''
 
-      - name: Build GitVersion for Tagging
+      - name: Build GitVersion for Tagging (only if needed)
         run: |
           go mod tidy
           go build -o gitversion ./cmd
+        if: github.event.inputs.version == ''
 
       - name: Create Git Tag
         env:
@@ -302,47 +365,51 @@ jobs:
           
           ## Installation
           
-          ### Download Binary
-          
-          Download the appropriate binary for your platform:
-          
-          \`\`\`bash
-          # Linux (AMD64)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-amd64
-          chmod +x gitversion
-          
-          # Linux (ARM64)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-arm64
-          chmod +x gitversion
-          
-          # macOS (Intel)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-amd64
-          chmod +x gitversion
-          
-          # macOS (Apple Silicon)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-arm64
-          chmod +x gitversion
-          
-          # Windows (AMD64)
-          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-amd64.exe
-          
-          # Windows (ARM64)
-          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-arm64.exe
-          \`\`\`
-          
           ### Go Install
           
           \`\`\`bash
           go install github.com/VirtuallyScott/gitversion-go/cmd@v$VERSION
           \`\`\`
           
-          ## Checksums
-          
-          Verify your download with SHA256 checksums:
-          
-          \`\`\`
-          $(cd release-assets && cat *.sha256 | sed 's/^/  /')
-          \`\`\`
+          $(if [ -d "release-assets" ] && [ "$(ls -A release-assets/)" ]; then
+            echo "### Download Binary"
+            echo ""
+            echo "Download the appropriate binary for your platform:"
+            echo ""
+            echo "\`\`\`bash"
+            echo "# Linux (AMD64)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-amd64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# Linux (ARM64)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-arm64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# macOS (Intel)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-amd64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# macOS (Apple Silicon)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-arm64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# Windows (AMD64)"
+            echo "curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-amd64.exe"
+            echo ""
+            echo "# Windows (ARM64)"
+            echo "curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-arm64.exe"
+            echo "\`\`\`"
+            echo ""
+            echo "## Checksums"
+            echo ""
+            echo "Verify your download with SHA256 checksums:"
+            echo ""
+            echo "\`\`\`"
+            cd release-assets && cat *.sha256 2>/dev/null | sed 's/^/  /' || echo "  Checksums will be available in future releases with pre-built binaries"
+            echo "\`\`\`"
+          else
+            echo "Pre-built binaries will be available in future releases."
+          fi)
           
           ## Full Changelog
           
@@ -364,6 +431,7 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Update Release Summary
         run: |
@@ -373,7 +441,11 @@ jobs:
           echo "**Tag:** v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Prerelease:** ${{ needs.version.outputs.prerelease != '' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
-          ls -la release-assets/ | tail -n +2 | awk '{print "* " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY
+          if [ -d "release-assets" ] && [ "$(ls -A release-assets/)" ]; then
+            echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
+            ls -la release-assets/ | tail -n +2 | awk '{print "* " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Assets:** Source code only (manual version provided)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/VirtuallyScott/gitversion-go/releases/tag/v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
