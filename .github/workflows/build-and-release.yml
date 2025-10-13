@@ -145,6 +145,7 @@ jobs:
     name: Build
     runs-on: ${{ matrix.os }}
     needs: version
+    if: github.event.inputs.version == ''
     strategy:
       matrix:
         include:
@@ -250,6 +251,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     needs: version
+    if: github.event.inputs.version == ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -287,7 +289,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [version, build, test]
+    needs: [version]
     if: needs.version.outputs.should_release == 'true'
     steps:
       - name: Checkout
@@ -296,34 +298,41 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download All Artifacts
+      - name: Download All Artifacts (if builds ran)
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+        if: github.event.inputs.version == ''
+        continue-on-error: true
 
-      - name: Prepare Release Assets
+      - name: Prepare Release Assets (if builds ran)
         run: |
           mkdir -p release-assets
           
-          # Copy all binaries and checksums to release assets
-          find artifacts -name "gitversion-*" -type f | while read file; do
-            cp "$file" release-assets/
-          done
+          # Copy all binaries and checksums to release assets (if they exist)
+          if [ -d "artifacts" ]; then
+            find artifacts -name "gitversion-*" -type f | while read file; do
+              cp "$file" release-assets/
+            done
+          fi
           
           # List all assets
           echo "Release assets:"
-          ls -la release-assets/
+          ls -la release-assets/ || echo "No build artifacts found (manual version provided)"
+        if: github.event.inputs.version == ''
 
-      - name: Setup Go for GitVersion
+      - name: Setup Go for GitVersion (only for tagging)
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
           cache: true
+        if: github.event.inputs.version == ''
 
-      - name: Build GitVersion for Tagging
+      - name: Build GitVersion for Tagging (only if needed)
         run: |
           go mod tidy
           go build -o gitversion ./cmd
+        if: github.event.inputs.version == ''
 
       - name: Create Git Tag
         env:
@@ -356,47 +365,51 @@ jobs:
           
           ## Installation
           
-          ### Download Binary
-          
-          Download the appropriate binary for your platform:
-          
-          \`\`\`bash
-          # Linux (AMD64)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-amd64
-          chmod +x gitversion
-          
-          # Linux (ARM64)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-arm64
-          chmod +x gitversion
-          
-          # macOS (Intel)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-amd64
-          chmod +x gitversion
-          
-          # macOS (Apple Silicon)
-          curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-arm64
-          chmod +x gitversion
-          
-          # Windows (AMD64)
-          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-amd64.exe
-          
-          # Windows (ARM64)
-          curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-arm64.exe
-          \`\`\`
-          
           ### Go Install
           
           \`\`\`bash
           go install github.com/VirtuallyScott/gitversion-go/cmd@v$VERSION
           \`\`\`
           
-          ## Checksums
-          
-          Verify your download with SHA256 checksums:
-          
-          \`\`\`
-          $(cd release-assets && cat *.sha256 | sed 's/^/  /')
-          \`\`\`
+          $(if [ -d "release-assets" ] && [ "$(ls -A release-assets/)" ]; then
+            echo "### Download Binary"
+            echo ""
+            echo "Download the appropriate binary for your platform:"
+            echo ""
+            echo "\`\`\`bash"
+            echo "# Linux (AMD64)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-amd64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# Linux (ARM64)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-linux-arm64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# macOS (Intel)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-amd64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# macOS (Apple Silicon)"
+            echo "curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-darwin-arm64"
+            echo "chmod +x gitversion"
+            echo ""
+            echo "# Windows (AMD64)"
+            echo "curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-amd64.exe"
+            echo ""
+            echo "# Windows (ARM64)"
+            echo "curl -L -o gitversion.exe https://github.com/VirtuallyScott/gitversion-go/releases/download/v$VERSION/gitversion-windows-arm64.exe"
+            echo "\`\`\`"
+            echo ""
+            echo "## Checksums"
+            echo ""
+            echo "Verify your download with SHA256 checksums:"
+            echo ""
+            echo "\`\`\`"
+            cd release-assets && cat *.sha256 2>/dev/null | sed 's/^/  /' || echo "  Checksums will be available in future releases with pre-built binaries"
+            echo "\`\`\`"
+          else
+            echo "Pre-built binaries will be available in future releases."
+          fi)
           
           ## Full Changelog
           
@@ -418,6 +431,7 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Update Release Summary
         run: |
@@ -427,7 +441,11 @@ jobs:
           echo "**Tag:** v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Prerelease:** ${{ needs.version.outputs.prerelease != '' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
-          ls -la release-assets/ | tail -n +2 | awk '{print "* " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY
+          if [ -d "release-assets" ] && [ "$(ls -A release-assets/)" ]; then
+            echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
+            ls -la release-assets/ | tail -n +2 | awk '{print "* " $9 " (" $5 " bytes)"}' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Assets:** Source code only (manual version provided)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/VirtuallyScott/gitversion-go/releases/tag/v${{ needs.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
