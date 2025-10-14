@@ -20,7 +20,7 @@ coverage/
 /bin/
 /build/
 /dist/
-/pkg/
+# /pkg/ - commented out to allow our source packages
 .cache/
 go.work
 # /go/pkg/mod/
