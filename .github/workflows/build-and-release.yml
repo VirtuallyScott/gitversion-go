@@ -208,8 +208,8 @@ jobs:
           # Ensure module is properly initialized
           go mod tidy
           
-          # Build with version information
-          go build -mod=mod \
+          # Build with version information (using local modules)
+          go build \
             -ldflags="-s -w -X main.version=$VERSION -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o dist/${{ matrix.binary_name }} \
             ./cmd
