@@ -205,8 +205,8 @@ jobs:
           # Prepare build directory
           mkdir -p dist
           
-          # Ensure module is properly initialized
-          go mod tidy
+          # Download dependencies without modifying go.mod/go.sum
+          go mod download
           
           # Build with version information (using local modules)
           go build \
