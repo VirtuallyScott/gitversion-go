@@ -55,8 +55,9 @@ jobs:
 
       - name: Build GitVersion-Go
         run: |
-          # Build directly without tidying to avoid external dependency resolution
-          go build -mod=readonly -o gitversion ./cmd
+          # Ensure dependencies are available and build GitVersion-Go
+          go mod tidy
+          go build -o gitversion ./cmd
         if: github.event.inputs.version == ''
 
       - name: Calculate Version
@@ -210,7 +211,7 @@ jobs:
           go mod tidy
           
           # Build with version information
-          go build -mod=mod \
+          go build \
             -ldflags="-s -w -X main.version=$VERSION -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o dist/${{ matrix.binary_name }} \
             ./cmd
@@ -277,7 +278,7 @@ jobs:
       - name: Run Tests
         run: |
           go mod tidy
-          go test -mod=mod -v -race -coverprofile=coverage.out ./...
+          go test -v -race -coverprofile=coverage.out ./...
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
