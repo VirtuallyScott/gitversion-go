@@ -205,15 +205,8 @@ jobs:
           # Prepare build directory
           mkdir -p dist
           
-          # Add local module replacements for building
-          go mod edit -require=github.com/VirtuallyScott/gitversion-go/pkg/config@v0.0.0
-          go mod edit -require=github.com/VirtuallyScott/gitversion-go/pkg/gitversion@v0.0.0
-          go mod edit -require=github.com/VirtuallyScott/gitversion-go/pkg/semver@v0.0.0
-          go mod edit -require=github.com/VirtuallyScott/gitversion-go/internal/version@v0.0.0
-          go mod edit -replace=github.com/VirtuallyScott/gitversion-go/pkg/config@v0.0.0=./pkg/config
-          go mod edit -replace=github.com/VirtuallyScott/gitversion-go/pkg/gitversion@v0.0.0=./pkg/gitversion
-          go mod edit -replace=github.com/VirtuallyScott/gitversion-go/pkg/semver@v0.0.0=./pkg/semver
-          go mod edit -replace=github.com/VirtuallyScott/gitversion-go/internal/version@v0.0.0=./internal/version
+          # Ensure dependencies are downloaded
+          go mod download
           
           # Build with version information (using local modules)
           go build \
