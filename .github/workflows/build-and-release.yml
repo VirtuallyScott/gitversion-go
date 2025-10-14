@@ -145,7 +145,6 @@ jobs:
     name: Build
     runs-on: ${{ matrix.os }}
     needs: version
-    if: github.event.inputs.version == ''
     strategy:
       matrix:
         include:
