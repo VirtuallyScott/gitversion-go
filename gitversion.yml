@@ -2,12 +2,11 @@
 # GitVersion Configuration for GitVersion-Go
 # Configured for clean MajorMinorPatch release versions
 
-next-version: v0.0.0-beta.37+37+861b6f2-3-gbe1a9d59640305cb751355eb346469a91296a210
+next-version: v1.0.0
 mode: ContinuousDelivery
 increment: Inherit
-tag-prefix: '[vV]?'
+tag-prefix: '[vV]'
 
-# Commit message incrementing
 commit-message-incrementing:
   enabled: true
 
@@ -15,7 +14,7 @@ branches:
   main:
     increment: Patch
     mode: ManualDeployment
-    regex: ^master$|^main$
+    regex: ^(master|main)$
     pre-release-weight: 55000
 
   develop:
