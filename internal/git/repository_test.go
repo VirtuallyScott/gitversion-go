@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	semverMajorPattern = regexp.MustCompile(`(?i)\+semver:\s*(breaking|major)`)
-	semverMinorPattern = regexp.MustCompile(`(?i)\+semver:\s*(feature|minor)`)
-	breakingChangePattern = regexp.MustCompile(`(?i)BREAKING\s*CHANGE`)
+	semverMajorPattern          = regexp.MustCompile(`(?i)\+semver:\s*(breaking|major)`)
+	semverMinorPattern          = regexp.MustCompile(`(?i)\+semver:\s*(feature|minor)`)
+	breakingChangePattern       = regexp.MustCompile(`(?i)BREAKING\s*CHANGE`)
 	conventionalBreakingPattern = regexp.MustCompile(`(?i)^feat(\(.+\))?!:`)
-	conventionalFeaturePattern = regexp.MustCompile(`(?i)^feat(\(.+\))?:`)
+	conventionalFeaturePattern  = regexp.MustCompile(`(?i)^feat(\(.+\))?:`)
 )
 
 func TestIncrementType(t *testing.T) {
 	tests := []struct {
-		name            string
-		commitMessages  []string
+		name              string
+		commitMessages    []string
 		expectedIncrement IncrementType
 	}{
 		{
@@ -87,7 +87,7 @@ func TestIncrementType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &Repository{}
 			increment := repo.analyzeCommitMessages(tt.commitMessages)
-			
+
 			if increment != tt.expectedIncrement {
 				t.Errorf("Expected %s, got %s", tt.expectedIncrement, increment)
 			}
@@ -97,7 +97,7 @@ func TestIncrementType(t *testing.T) {
 
 func (r *Repository) analyzeCommitMessages(messages []string) IncrementType {
 	increment := IncrementPatch
-	
+
 	for _, message := range messages {
 		detected := r.detectIncrementFromMessage(message)
 		if detected == IncrementMajor {
@@ -107,21 +107,21 @@ func (r *Repository) analyzeCommitMessages(messages []string) IncrementType {
 			increment = IncrementMinor
 		}
 	}
-	
+
 	return increment
 }
 
 func (r *Repository) detectIncrementFromMessage(message string) IncrementType {
-	if semverMajorPattern.MatchString(message) || 
-	   breakingChangePattern.MatchString(message) || 
-	   conventionalBreakingPattern.MatchString(message) {
+	if semverMajorPattern.MatchString(message) ||
+		breakingChangePattern.MatchString(message) ||
+		conventionalBreakingPattern.MatchString(message) {
 		return IncrementMajor
 	}
-	
-	if semverMinorPattern.MatchString(message) || 
-	   conventionalFeaturePattern.MatchString(message) {
+
+	if semverMinorPattern.MatchString(message) ||
+		conventionalFeaturePattern.MatchString(message) {
 		return IncrementMinor
 	}
-	
+
 	return IncrementPatch
 }
