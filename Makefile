@@ -8,7 +8,7 @@
 BINARY_NAME=gitversion
 BUILD_DIR=build
 VERSION=$(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-GITVERSION_VERSION=$(shell ./gitversion -c gitversion.yml -o json 2>/dev/null | jq -r '.MajorMinorPatch // "1.0.0"' 2>/dev/null || echo "1.0.0")
+GITVERSION_VERSION=$(shell gitversion -c gitversion.yml -o json 2>/dev/null | jq -r '.MajorMinorPatch + "-" + .PreReleaseTag' 2>/dev/null || echo "1.0.0")
 LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
 
 # Git flow variables
@@ -153,10 +153,10 @@ version-info:
 	@echo "$(BLUE)GitVersion Information:$(NC)"
 	@echo "$(GREEN)Current MajorMinorPatch version: $(GITVERSION_VERSION)$(NC)"
 	@echo "$(YELLOW)Full GitVersion output:$(NC)"
-	@./gitversion -c gitversion.yml
+	@gitversion -c gitversion.yml
 	@echo ""
 	@echo "$(YELLOW)JSON format:$(NC)"
-	@./gitversion -c gitversion.yml -o json
+	@gitversion -c gitversion.yml -o json
 
 # Sync current branch with remote
 git-sync:
