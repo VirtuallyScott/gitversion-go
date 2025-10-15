@@ -66,9 +66,19 @@ func (gv *GitVersion) Calculate(opts *Options) (string, error) {
 		gv.logDebug("Workflow: %s", opts.Workflow)
 		gv.logDebug("Force increment: %s", opts.ForceIncrement)
 		gv.logDebug("Next version: %s", opts.NextVersion)
+		gv.logDebug("Config next version: %s", gv.config.NextVersion)
 	}
 
-	version, err := gv.calculator.CalculateVersion(branch, opts.Workflow, opts.ForceIncrement, opts.NextVersion)
+	// Use config NextVersion if no command line override provided
+	nextVersion := opts.NextVersion
+	if nextVersion == "" && gv.config.NextVersion != "" {
+		nextVersion = gv.config.NextVersion
+		if gv.debug {
+			gv.logDebug("Using config next version: %s", nextVersion)
+		}
+	}
+
+	version, err := gv.calculator.CalculateVersion(branch, opts.Workflow, opts.ForceIncrement, nextVersion)
 	if err != nil {
 		return "", fmt.Errorf("failed to calculate version: %w", err)
 	}
