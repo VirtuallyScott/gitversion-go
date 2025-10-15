@@ -69,7 +69,7 @@ func (c *Calculator) CalculateVersion(branch string, workflow WorkflowType, forc
 
 	// Use the strategies system for GitTools/GitVersion compatibility
 	var strategiesMask VersionStrategies
-	
+
 	// Add configured version strategy if next version is provided
 	if nextVersion != "" {
 		strategiesMask |= ConfiguredNextVersion

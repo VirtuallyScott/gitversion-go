@@ -4,14 +4,10 @@ name: Build and Release
 on:
   push:
     branches:
-      - main
-      - develop
       - release/*
-      - hotfix/*
   pull_request:
     branches:
-      - main
-      - develop
+      - release/*
   workflow_dispatch:
     inputs:
       version:
@@ -19,7 +15,7 @@ on:
         required: false
         type: string
       force_release:
-        description: Force create release even if not on main/release branch
+        description: Force create release even if not on release branch
         required: false
         type: boolean
         default: false
@@ -116,26 +112,22 @@ jobs:
           SHOULD_RELEASE="false"
 
           # Release conditions:
-          # 1. Push to main branch (stable release)
-          # 2. Push to release/* branch (release candidate)
-          # 3. Manual workflow dispatch
-          # 4. Force release via workflow input
+          # 1. Push to release/* branch (release candidate or stable release)
+          # 2. Manual workflow dispatch on release branch
+          # 3. Force release via workflow input
           if [[ "${{ github.event.inputs.force_release }}" == "true" ]]; then
             SHOULD_RELEASE="true"
             echo "Release forced via workflow input"
           elif [[ "${{ github.event_name }}" == "push" ]]; then
-            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-              SHOULD_RELEASE="true"
-              echo "Release triggered by push to main branch"
-            elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+            if [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
               SHOULD_RELEASE="true"
               echo "Release triggered by push to release branch"
             fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Only release on manual dispatch if version is provided or on release/main branches
-            if [[ -n "${{ github.event.inputs.version }}" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+            # Only release on manual dispatch if version is provided or on release branches
+            if [[ -n "${{ github.event.inputs.version }}" ]] || [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
               SHOULD_RELEASE="true"
-              echo "Release triggered by manual workflow dispatch"
+              echo "Release triggered by manual workflow dispatch on release branch"
             fi
           fi
 

@@ -88,7 +88,7 @@ func (c *ConfiguredNextVersionStrategy) GetBaseVersions(ctx *VersionContext) ([]
 	if nextVersion == "" {
 		nextVersion = ctx.Config.NextVersion
 	}
-	
+
 	if nextVersion == "" {
 		return nil, nil
 	}
