@@ -204,7 +204,7 @@ branches:
   main:
     increment: Patch
     mode: ManualDeployment
-  
+
   master:
     increment: Patch
     mode: ManualDeployment
