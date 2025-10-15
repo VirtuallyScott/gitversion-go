@@ -93,7 +93,7 @@ lint:
 	fi
 
 # Run all quality checks
-quality: fmt vet lint test
+quality: fmt vet lint test-unit
 
 # =============================================================================
 # PRE-COMMIT TARGETS
