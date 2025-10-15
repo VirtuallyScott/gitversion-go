@@ -37,8 +37,8 @@ func TestGitVersionCLI(t *testing.T) {
 		validate func(t *testing.T, output string, err error)
 	}{
 		{
-			name: "Help flag",
-			args: []string{"--help"},
+			name:  "Help flag",
+			args:  []string{"--help"},
 			setup: func(t *testing.T, repoDir string) {},
 			validate: func(t *testing.T, output string, err error) {
 				if err != nil {
@@ -50,8 +50,8 @@ func TestGitVersionCLI(t *testing.T) {
 			},
 		},
 		{
-			name: "Version flag",
-			args: []string{"--version"},
+			name:  "Version flag",
+			args:  []string{"--version"},
 			setup: func(t *testing.T, repoDir string) {},
 			validate: func(t *testing.T, output string, err error) {
 				if err != nil {
@@ -103,8 +103,8 @@ func TestGitVersionCLI(t *testing.T) {
 			},
 		},
 		{
-			name: "AssemblySemVer output format",
-			args: []string{"--output", "AssemblySemVer"},
+			name:  "AssemblySemVer output format",
+			args:  []string{"--output", "AssemblySemVer"},
 			setup: func(t *testing.T, repoDir string) {},
 			validate: func(t *testing.T, output string, err error) {
 				if err != nil {

@@ -136,13 +136,13 @@ func (r *Repository) DetectVersionIncrement(tag string) (IncrementType, error) {
 
 	for _, commit := range commits {
 		if semverMajorPattern.MatchString(commit) ||
-		   breakingChangePattern.MatchString(commit) ||
-		   conventionalBreakingPattern.MatchString(commit) {
+			breakingChangePattern.MatchString(commit) ||
+			conventionalBreakingPattern.MatchString(commit) {
 			return IncrementMajor, nil
 		}
 
 		if semverMinorPattern.MatchString(commit) ||
-		   conventionalFeaturePattern.MatchString(commit) {
+			conventionalFeaturePattern.MatchString(commit) {
 			if increment != IncrementMajor {
 				increment = IncrementMinor
 			}

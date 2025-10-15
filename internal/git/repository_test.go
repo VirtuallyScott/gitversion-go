@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	semverMajorPattern = regexp.MustCompile(`(?i)\+semver:\s*(breaking|major)`)
-	semverMinorPattern = regexp.MustCompile(`(?i)\+semver:\s*(feature|minor)`)
-	breakingChangePattern = regexp.MustCompile(`(?i)BREAKING\s*CHANGE`)
+	semverMajorPattern          = regexp.MustCompile(`(?i)\+semver:\s*(breaking|major)`)
+	semverMinorPattern          = regexp.MustCompile(`(?i)\+semver:\s*(feature|minor)`)
+	breakingChangePattern       = regexp.MustCompile(`(?i)BREAKING\s*CHANGE`)
 	conventionalBreakingPattern = regexp.MustCompile(`(?i)^feat(\(.+\))?!:`)
-	conventionalFeaturePattern = regexp.MustCompile(`(?i)^feat(\(.+\))?:`)
+	conventionalFeaturePattern  = regexp.MustCompile(`(?i)^feat(\(.+\))?:`)
 )
 
 func TestIncrementType(t *testing.T) {
 	tests := []struct {
-		name            string
-		commitMessages  []string
+		name              string
+		commitMessages    []string
 		expectedIncrement IncrementType
 	}{
 		{
@@ -113,13 +113,13 @@ func (r *Repository) analyzeCommitMessages(messages []string) IncrementType {
 
 func (r *Repository) detectIncrementFromMessage(message string) IncrementType {
 	if semverMajorPattern.MatchString(message) ||
-	   breakingChangePattern.MatchString(message) ||
-	   conventionalBreakingPattern.MatchString(message) {
+		breakingChangePattern.MatchString(message) ||
+		conventionalBreakingPattern.MatchString(message) {
 		return IncrementMajor
 	}
 
 	if semverMinorPattern.MatchString(message) ||
-	   conventionalFeaturePattern.MatchString(message) {
+		conventionalFeaturePattern.MatchString(message) {
 		return IncrementMinor
 	}
 
