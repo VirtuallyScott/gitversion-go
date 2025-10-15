@@ -7,7 +7,7 @@ This project uses Git Flow workflow with Makefile automation for streamlined dev
 - **main**: Production-ready code, tagged releases
 - **develop**: Integration branch for features
 - **feature/**: Feature development branches
-- **release/**: Release preparation branches  
+- **release/**: Release preparation branches
 - **hotfix/**: Emergency fixes for production
 
 ## Quick Start Commands

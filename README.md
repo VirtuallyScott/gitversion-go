@@ -2,6 +2,8 @@
 
 A high-performance Go implementation of [GitVersion](https://github.com/GitTools/GitVersion) that automatically generates semantic version numbers from your Git repository history. This implementation provides the same functionality as the original GitVersion tool and the shell implementation in gitversion-sh, but with the performance and portability benefits of Go.
 
+> **📚 Compatibility Note**: This implementation is designed to be compatible with the original [GitVersion](https://gitversion.net/docs/) tool. For comprehensive documentation on GitVersion concepts, configuration options, and workflow patterns, please refer to the [official GitVersion documentation](https://gitversion.net/docs/).
+
 ## Features
 
 - **Automatic Semantic Versioning**: Calculates version numbers based on Git history and branch structure
