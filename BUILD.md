@@ -213,7 +213,7 @@ make build-all
 
 # Results in build/ directory:
 # - gitversion-linux-amd64
-# - gitversion-darwin-amd64  
+# - gitversion-darwin-amd64
 # - gitversion-darwin-arm64
 # - gitversion-windows-amd64.exe
 ```
@@ -318,7 +318,7 @@ go build -o gitversion ./cmd
 go tool pprof cpu.prof
 
 # Memory profiling
-go build -o gitversion ./cmd  
+go build -o gitversion ./cmd
 ./gitversion --memprofile=mem.prof
 go tool pprof mem.prof
 ```
@@ -440,19 +440,19 @@ jobs:
     strategy:
       matrix:
         go-version: [1.21, 1.22]
-    
+
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
-    
+
     - name: Test
       run: make test
-    
+
     - name: Build
       run: make build-all
-    
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
@@ -533,10 +533,10 @@ jobs:
     - uses: actions/setup-go@v4
       with:
         go-version: 1.21
-    
+
     - name: Build
       run: make build-all
-    
+
     - name: Create Release
       uses: goreleaser/goreleaser-action@v4
       with:

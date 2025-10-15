@@ -192,7 +192,7 @@ func (c *Calculator) extractReleaseName(branch string) string {
 	parts := strings.Split(branch, "/")
 	if len(parts) > 1 {
 		versionPart := parts[len(parts)-1]
-		// Look for prerelease tag after a dash (e.g., "0.0.2-alpha" -> "alpha")  
+		// Look for prerelease tag after a dash (e.g., "0.0.2-alpha" -> "alpha")
 		if dashIndex := strings.LastIndex(versionPart, "-"); dashIndex != -1 && dashIndex < len(versionPart)-1 {
 			prerelease := versionPart[dashIndex+1:]
 			return semver.SanitizeBranchName(prerelease)

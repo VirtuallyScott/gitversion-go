@@ -48,15 +48,15 @@ func Parse(version string) (*Version, error) {
 
 func (v *Version) String() string {
 	version := fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
-	
+
 	if v.PreRelease != "" {
 		version += "-" + v.PreRelease
 	}
-	
+
 	if v.Build != "" {
 		version += "+" + v.Build
 	}
-	
+
 	return version
 }
 

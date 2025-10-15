@@ -33,19 +33,19 @@ func LoadConfig(configPath string) (*Config, error) {
 	if configPath == "" {
 		return getDefaultConfig(), nil
 	}
-	
+
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("configuration file not found: %s", configPath)
 	}
-	
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	config := &Config{}
 	ext := strings.ToLower(filepath.Ext(configPath))
-	
+
 	switch ext {
 	case ".json":
 		if err := json.Unmarshal(data, config); err != nil {
@@ -58,7 +58,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	default:
 		return nil, fmt.Errorf("unsupported configuration file format: %s", ext)
 	}
-	
+
 	return config, nil
 }
 
@@ -107,13 +107,13 @@ func (c *Config) GetBranchConfig(branchName string) *BranchConfig {
 	if config, exists := c.Branches[branchName]; exists {
 		return &config
 	}
-	
+
 	for branchType, config := range c.Branches {
 		if strings.HasPrefix(branchName, branchType+"/") {
 			return &config
 		}
 	}
-	
+
 	return &BranchConfig{
 		Increment: "Patch",
 		Tag:       "{BranchName}",

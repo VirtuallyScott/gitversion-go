@@ -72,21 +72,21 @@ EOF
 #
 check_dependencies() {
     local missing_deps=()
-    
+
     if ! command -v git >/dev/null 2>&1; then
         missing_deps+=("git")
     fi
-    
+
     if ! command -v gitversion >/dev/null 2>&1; then
         missing_deps+=("gitversion")
     fi
-    
+
     if [[ ${#missing_deps[@]} -gt 0 ]]; then
         print_error "Missing required dependencies: ${missing_deps[*]}"
         print_info "Please install missing dependencies and try again"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -95,22 +95,22 @@ check_dependencies() {
 #
 get_git_info() {
     local current_branch current_version
-    
+
     if ! current_branch=$(git branch --show-current 2>/dev/null); then
         print_error "Failed to get current git branch"
         print_info "Make sure you're in a git repository"
         return 1
     fi
-    
+
     if ! current_version=$(gitversion 2>/dev/null); then
         print_error "Failed to get version from gitversion"
         print_info "Make sure gitversion is properly installed and working"
         return 1
     fi
-    
+
     # Remove any trailing characters (like %)
     current_version=$(echo "$current_version" | tr -d '%')
-    
+
     echo "$current_branch|$current_version"
 }
 
@@ -121,7 +121,7 @@ show_manual_instructions() {
     local branch="$1"
     local version="$2"
     local force_release="$3"
-    
+
     echo
     print_info "🚀 Manual GitHub Actions Trigger Helper"
     echo "======================================"
@@ -129,7 +129,7 @@ show_manual_instructions() {
     print_info "📍 Current Branch: $branch"
     print_info "🏷️  Current Version: $version"
     echo
-    
+
     print_success "To manually trigger GitHub Actions with this version:"
     echo
     echo "1. Go to: https://github.com/$REPO_OWNER/$REPO_NAME/actions/workflows/$WORKFLOW_FILE"
@@ -139,7 +139,7 @@ show_manual_instructions() {
     echo "5. $([ "$force_release" = "true" ] && echo "Check" || echo "Uncheck") 'Force create release'"
     echo "6. Click 'Run workflow'"
     echo
-    
+
     if command -v gh >/dev/null 2>&1; then
         print_success "Or use GitHub CLI:"
         echo
@@ -151,7 +151,7 @@ show_manual_instructions() {
     else
         print_warning "GitHub CLI (gh) not found. Install it for command-line workflow triggering."
     fi
-    
+
     print_info "💡 This bypasses the chicken-and-egg problem by using your local version!"
 }
 
@@ -160,7 +160,7 @@ show_manual_instructions() {
 #
 main() {
     local force_release="true"
-    
+
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -186,21 +186,21 @@ main() {
         esac
         shift
     done
-    
+
     # Check dependencies
     if ! check_dependencies; then
         exit 1
     fi
-    
+
     # Get git information
     local git_info
     if ! git_info=$(get_git_info); then
         exit 1
     fi
-    
+
     local current_branch current_version
     IFS='|' read -r current_branch current_version <<< "$git_info"
-    
+
     # Show instructions
     show_manual_instructions "$current_branch" "$current_version" "$force_release"
 }

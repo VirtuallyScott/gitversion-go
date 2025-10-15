@@ -46,17 +46,17 @@ func (r *Repository) GetCommitCountSinceTag(tag string) (int, error) {
 	} else {
 		cmd = exec.Command("git", "rev-list", "--count", "HEAD")
 	}
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return 0, nil
 	}
-	
+
 	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
 		return 0, nil
 	}
-	
+
 	return count, nil
 }
 
@@ -67,12 +67,12 @@ func (r *Repository) GetCommitsSinceTag(tag string) ([]string, error) {
 	} else {
 		cmd = exec.Command("git", "log", "--oneline", "HEAD")
 	}
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return []string{}, nil
 	}
-	
+
 	var commits []string
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
@@ -81,7 +81,7 @@ func (r *Repository) GetCommitsSinceTag(tag string) ([]string, error) {
 			commits = append(commits, line)
 		}
 	}
-	
+
 	return commits, nil
 }
 
@@ -125,29 +125,29 @@ func (r *Repository) DetectVersionIncrement(tag string) (IncrementType, error) {
 	if err != nil {
 		return IncrementPatch, err
 	}
-	
+
 	increment := IncrementPatch
-	
+
 	semverMajorPattern := regexp.MustCompile(`(?i)\+semver:\s*(breaking|major)`)
 	semverMinorPattern := regexp.MustCompile(`(?i)\+semver:\s*(feature|minor)`)
 	breakingChangePattern := regexp.MustCompile(`(?i)BREAKING\s*CHANGE`)
 	conventionalBreakingPattern := regexp.MustCompile(`(?i)^feat(\(.+\))?!:`)
 	conventionalFeaturePattern := regexp.MustCompile(`(?i)^feat(\(.+\))?:`)
-	
+
 	for _, commit := range commits {
-		if semverMajorPattern.MatchString(commit) || 
-		   breakingChangePattern.MatchString(commit) || 
+		if semverMajorPattern.MatchString(commit) ||
+		   breakingChangePattern.MatchString(commit) ||
 		   conventionalBreakingPattern.MatchString(commit) {
 			return IncrementMajor, nil
 		}
-		
-		if semverMinorPattern.MatchString(commit) || 
+
+		if semverMinorPattern.MatchString(commit) ||
 		   conventionalFeaturePattern.MatchString(commit) {
 			if increment != IncrementMajor {
 				increment = IncrementMinor
 			}
 		}
 	}
-	
+
 	return increment, nil
 }

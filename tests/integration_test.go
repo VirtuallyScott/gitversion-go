@@ -17,7 +17,7 @@ func TestGitVersionCLI(t *testing.T) {
 	// Build the binary first
 	buildDir := t.TempDir()
 	binaryPath := filepath.Join(buildDir, "gitversion")
-	
+
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "../cmd")
 	buildCmd.Dir = ".."
 	if err := buildCmd.Run(); err != nil {
@@ -26,10 +26,10 @@ func TestGitVersionCLI(t *testing.T) {
 
 	// Create a test git repository
 	testRepo := t.TempDir()
-	
+
 	// Initialize git repository
 	initGit(t, testRepo)
-	
+
 	tests := []struct {
 		name     string
 		args     []string
@@ -88,12 +88,12 @@ func TestGitVersionCLI(t *testing.T) {
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
-				
+
 				var jsonOutput map[string]interface{}
 				if err := json.Unmarshal([]byte(output), &jsonOutput); err != nil {
 					t.Errorf("Output should be valid JSON: %v", err)
 				}
-				
+
 				if _, exists := jsonOutput["Major"]; !exists {
 					t.Errorf("JSON output should contain Major field")
 				}
@@ -154,15 +154,15 @@ func TestGitVersionCLI(t *testing.T) {
 			// Create a fresh repository for each test
 			repoDir := t.TempDir()
 			initGit(t, repoDir)
-			
+
 			// Run test setup
 			tt.setup(t, repoDir)
-			
+
 			// Run the gitversion command
 			cmd := exec.Command(binaryPath, tt.args...)
 			cmd.Dir = repoDir
 			output, err := cmd.CombinedOutput()
-			
+
 			tt.validate(t, string(output), err)
 		})
 	}
@@ -174,7 +174,7 @@ func initGit(t *testing.T, dir string) {
 		{"git", "config", "user.name", "Test User"},
 		{"git", "config", "user.email", "test@example.com"},
 	}
-	
+
 	for _, cmd := range commands {
 		execCmd := exec.Command(cmd[0], cmd[1:]...)
 		execCmd.Dir = dir
@@ -190,12 +190,12 @@ func createCommit(t *testing.T, repoDir, message string) {
 	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	
+
 	commands := [][]string{
 		{"git", "add", "test.txt"},
 		{"git", "commit", "-m", message},
 	}
-	
+
 	for _, cmd := range commands {
 		execCmd := exec.Command(cmd[0], cmd[1:]...)
 		execCmd.Dir = repoDir

@@ -12,11 +12,11 @@ func TestLoadConfig(t *testing.T) {
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
-		
+
 		if config.NextVersion != "0.0.0" {
 			t.Errorf("Expected NextVersion to be '0.0.0', got '%s'", config.NextVersion)
 		}
-		
+
 		if len(config.Branches) == 0 {
 			t.Errorf("Expected branches to be configured")
 		}
@@ -25,7 +25,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("Load JSON config", func(t *testing.T) {
 		tempDir := t.TempDir()
 		configFile := filepath.Join(tempDir, "test.json")
-		
+
 		jsonContent := `{
 			"next-version": "1.0.0",
 			"branches": {
@@ -35,21 +35,21 @@ func TestLoadConfig(t *testing.T) {
 				}
 			}
 		}`
-		
+
 		err := os.WriteFile(configFile, []byte(jsonContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test config: %v", err)
 		}
-		
+
 		config, err := LoadConfig(configFile)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
-		
+
 		if config.NextVersion != "1.0.0" {
 			t.Errorf("Expected NextVersion to be '1.0.0', got '%s'", config.NextVersion)
 		}
-		
+
 		mainConfig := config.Branches["main"]
 		if mainConfig.Increment != "Patch" {
 			t.Errorf("Expected main.increment to be 'Patch', got '%s'", mainConfig.Increment)
@@ -62,7 +62,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("Load YAML config", func(t *testing.T) {
 		tempDir := t.TempDir()
 		configFile := filepath.Join(tempDir, "test.yml")
-		
+
 		yamlContent := `next-version: '2.0.0'
 branches:
   main:
@@ -71,26 +71,26 @@ branches:
   develop:
     increment: Major
     tag: dev`
-		
+
 		err := os.WriteFile(configFile, []byte(yamlContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test config: %v", err)
 		}
-		
+
 		config, err := LoadConfig(configFile)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
-		
+
 		if config.NextVersion != "2.0.0" {
 			t.Errorf("Expected NextVersion to be '2.0.0', got '%s'", config.NextVersion)
 		}
-		
+
 		mainConfig := config.Branches["main"]
 		if mainConfig.Increment != "Minor" {
 			t.Errorf("Expected main.increment to be 'Minor', got '%s'", mainConfig.Increment)
 		}
-		
+
 		developConfig := config.Branches["develop"]
 		if developConfig.Increment != "Major" {
 			t.Errorf("Expected develop.increment to be 'Major', got '%s'", developConfig.Increment)
@@ -107,12 +107,12 @@ branches:
 	t.Run("Error on unsupported format", func(t *testing.T) {
 		tempDir := t.TempDir()
 		configFile := filepath.Join(tempDir, "test.txt")
-		
+
 		err := os.WriteFile(configFile, []byte("invalid"), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write test file: %v", err)
 		}
-		
+
 		_, err = LoadConfig(configFile)
 		if err == nil {
 			t.Errorf("Expected error for unsupported format")
@@ -122,7 +122,7 @@ branches:
 
 func TestGetBranchConfig(t *testing.T) {
 	config := getDefaultConfig()
-	
+
 	t.Run("Get exact branch config", func(t *testing.T) {
 		branchConfig := config.GetBranchConfig("main")
 		if branchConfig.Increment != "Patch" {

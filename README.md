@@ -5,7 +5,7 @@ A high-performance Go implementation of [GitVersion](https://github.com/GitTools
 ## Features
 
 - **Automatic Semantic Versioning**: Calculates version numbers based on Git history and branch structure
-- **Multiple Workflow Support**: GitFlow, GitHubFlow, and trunk-based development workflows  
+- **Multiple Workflow Support**: GitFlow, GitHubFlow, and trunk-based development workflows
 - **Commit Message Parsing**: Detects version increments from conventional commit messages and +semver tags
 - **Branch-Aware Versioning**: Different versioning strategies for main, develop, feature, release, and hotfix branches
 - **Flexible Output**: Support for text, JSON, AssemblySemVer, and AssemblySemFileVer formats
@@ -78,11 +78,11 @@ OPTIONS:
     -h, --help              Show help message
     -v, --version           Show version information
     -o, --output FORMAT     Output format (json|text|AssemblySemVer|AssemblySemFileVer) [default: text]
-    -c, --config FILE       Path to configuration file  
+    -c, --config FILE       Path to configuration file
     -b, --branch BRANCH     Target branch [default: current branch]
     -w, --workflow TYPE     Workflow type (gitflow|githubflow|trunk) [default: gitflow]
     --major                 Force major version increment
-    --minor                 Force minor version increment  
+    --minor                 Force minor version increment
     --patch                 Force patch version increment
     --next-version VERSION  Override next version
 ```
@@ -99,7 +99,7 @@ gitversion --output json
 # Output AssemblySemVer format (1.2.3.0)
 gitversion --output AssemblySemVer
 
-# Output AssemblySemFileVer format (1.2.3.0) 
+# Output AssemblySemFileVer format (1.2.3.0)
 gitversion --output AssemblySemFileVer
 
 # Calculate version for specific branch
@@ -177,7 +177,7 @@ GitVersion-go supports both JSON and YAML configuration files for advanced custo
       "regex": "^releases?[/-]"
     },
     "hotfix": {
-      "increment": "Patch", 
+      "increment": "Patch",
       "tag": "hotfix",
       "regex": "^hotfix(es)?[/-]"
     }
@@ -199,22 +199,22 @@ branches:
     increment: Patch
     tag: ''
     regex: '^master$|^main$'
-    
+
   develop:
     increment: Minor
     tag: alpha
     regex: '^develop$'
-    
+
   feature:
     increment: Minor
     tag: '{BranchName}'
     regex: '^features?[/-]'
-    
+
   release:
     increment: None
     tag: beta
     regex: '^releases?[/-]'
-    
+
   hotfix:
     increment: Patch
     tag: hotfix
@@ -231,7 +231,7 @@ commit-message-incrementing:
 # Use JSON configuration
 gitversion --config GitVersion.json
 
-# Use YAML configuration  
+# Use YAML configuration
 gitversion --config GitVersion.yml
 
 # Configuration with specific branch
@@ -261,7 +261,7 @@ The tool also recognizes conventional commit patterns:
 
 - `feat:` → Minor increment
 - `feat!:` → Major increment (breaking change)
-- `fix:` → Patch increment  
+- `fix:` → Patch increment
 - `BREAKING CHANGE:` → Major increment
 
 ## Output Formats
@@ -329,19 +329,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Required for GitVersion
-      
+
       - name: Setup GitVersion
         run: |
           curl -L -o gitversion https://github.com/VirtuallyScott/gitversion-go/releases/latest/download/gitversion-linux-amd64
           chmod +x gitversion
           sudo mv gitversion /usr/local/bin/
-      
+
       - name: Calculate Version
         id: version
         run: |
           VERSION=$(gitversion)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+
       - name: Build and Tag
         run: |
           echo "Building version: ${{ steps.version.outputs.version }}"
@@ -382,14 +382,14 @@ build:
 ```groovy
 pipeline {
     agent any
-    
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Setup GitVersion') {
             steps {
                 sh '''
@@ -398,7 +398,7 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Version') {
             steps {
                 script {
@@ -408,7 +408,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build') {
             steps {
                 sh "docker build -t myapp:${env.VERSION} ."
@@ -523,7 +523,7 @@ GitVersion-go is designed for high performance:
 time ./gitversion.sh
 # real    0m0.450s
 
-# Go implementation  
+# Go implementation
 time ./gitversion
 # real    0m0.045s
 ```

@@ -61,19 +61,19 @@ func TestParse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := Parse(tt.version)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
-			
+
 			if result.Major != tt.expected.Major {
 				t.Errorf("Major mismatch: got %d, want %d", result.Major, tt.expected.Major)
 			}
@@ -135,7 +135,7 @@ func TestVersionIncrement(t *testing.T) {
 	t.Run("IncrementMajor", func(t *testing.T) {
 		v := &Version{Major: 1, Minor: 2, Patch: 3}
 		v.IncrementMajor()
-		
+
 		if v.Major != 2 || v.Minor != 0 || v.Patch != 0 {
 			t.Errorf("IncrementMajor failed: got %d.%d.%d, want 2.0.0", v.Major, v.Minor, v.Patch)
 		}
@@ -144,7 +144,7 @@ func TestVersionIncrement(t *testing.T) {
 	t.Run("IncrementMinor", func(t *testing.T) {
 		v := &Version{Major: 1, Minor: 2, Patch: 3}
 		v.IncrementMinor()
-		
+
 		if v.Major != 1 || v.Minor != 3 || v.Patch != 0 {
 			t.Errorf("IncrementMinor failed: got %d.%d.%d, want 1.3.0", v.Major, v.Minor, v.Patch)
 		}
@@ -153,7 +153,7 @@ func TestVersionIncrement(t *testing.T) {
 	t.Run("IncrementPatch", func(t *testing.T) {
 		v := &Version{Major: 1, Minor: 2, Patch: 3}
 		v.IncrementPatch()
-		
+
 		if v.Major != 1 || v.Minor != 2 || v.Patch != 4 {
 			t.Errorf("IncrementPatch failed: got %d.%d.%d, want 1.2.4", v.Major, v.Minor, v.Patch)
 		}
@@ -162,15 +162,15 @@ func TestVersionIncrement(t *testing.T) {
 
 func TestAssemblyVersions(t *testing.T) {
 	v := &Version{Major: 1, Minor: 2, Patch: 3}
-	
+
 	if v.AssemblySemVer() != "1.2.3.0" {
 		t.Errorf("AssemblySemVer failed: got %s, want 1.2.3.0", v.AssemblySemVer())
 	}
-	
+
 	if v.AssemblySemFileVer() != "1.2.3.0" {
 		t.Errorf("AssemblySemFileVer failed: got %s, want 1.2.3.0", v.AssemblySemFileVer())
 	}
-	
+
 	if v.MajorMinorPatch() != "1.2.3" {
 		t.Errorf("MajorMinorPatch failed: got %s, want 1.2.3", v.MajorMinorPatch())
 	}
