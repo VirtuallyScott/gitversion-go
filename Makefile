@@ -203,7 +203,7 @@ git-feature-finish:
 	@echo "  git branch -d feature/$(FEATURE)"
 	@echo "  git push origin --delete feature/$(FEATURE)"
 
-# Start a release branch from develop
+# Start a release branch from main (merges current branch first if needed)
 git-release-start:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "$(YELLOW)No VERSION specified, using GitVersion to calculate next version...$(NC)"; \
@@ -212,17 +212,29 @@ git-release-start:
 		RELEASE_VERSION=$(VERSION); \
 	fi; \
 	echo "$(GREEN)Creating release branch: release/$$RELEASE_VERSION$(NC)"; \
-	git checkout $(DEVELOP_BRANCH); \
-	git pull origin $(DEVELOP_BRANCH); \
+	echo "$(BLUE)Current branch: $(CURRENT_BRANCH)$(NC)"; \
+	if [ "$(CURRENT_BRANCH)" != "$(DEFAULT_BRANCH)" ]; then \
+		echo "$(YELLOW)Merging $(CURRENT_BRANCH) into $(DEFAULT_BRANCH) first...$(NC)"; \
+		make quality; \
+		git checkout $(DEFAULT_BRANCH); \
+		git pull origin $(DEFAULT_BRANCH); \
+		git merge --no-ff $(CURRENT_BRANCH) -m "Merge $(CURRENT_BRANCH) into $(DEFAULT_BRANCH) for release"; \
+		git push origin $(DEFAULT_BRANCH); \
+		echo "$(GREEN)Successfully merged $(CURRENT_BRANCH) into $(DEFAULT_BRANCH)$(NC)"; \
+	else \
+		echo "$(BLUE)Already on $(DEFAULT_BRANCH), pulling latest...$(NC)"; \
+		git pull origin $(DEFAULT_BRANCH); \
+	fi; \
 	git checkout -b release/$$RELEASE_VERSION; \
-	echo "Updating version in gitversion.yml..."; \
+	echo "$(YELLOW)Updating version in gitversion.yml...$(NC)"; \
 	if [ -f "gitversion.yml" ]; then \
 		sed -i.bak "s/next-version: .*/next-version: $$RELEASE_VERSION/" gitversion.yml && rm gitversion.yml.bak; \
 	fi; \
 	git add gitversion.yml; \
-	git commit -m "Bump version to $$RELEASE_VERSION"; \
+	git commit -m "Bump version to $$RELEASE_VERSION for release"; \
 	git push -u origin release/$$RELEASE_VERSION; \
-	echo "$(GREEN)Release branch release/$$RELEASE_VERSION created and pushed$(NC)"
+	echo "$(GREEN)Release branch release/$$RELEASE_VERSION created and pushed$(NC)"; \
+	echo "$(BLUE)This will trigger the GitHub Actions release build$(NC)"
 
 # Finish a release branch (merge to main and develop, create tag)
 git-release-finish:
