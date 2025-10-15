@@ -2,7 +2,7 @@
 # GitVersion Configuration for GitVersion-Go
 # Configured for clean MajorMinorPatch release versions
 
-next-version: 1.0.0
+next-version: v1.0.0
 mode: ContinuousDelivery
 increment: Inherit
 tag-prefix: '[vV]'
