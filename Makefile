@@ -1,12 +1,14 @@
 .PHONY: build test test-unit test-integration clean install lint fmt vet quality dev help
 .PHONY: pre-commit pre-commit-install pre-commit-update
 .PHONY: git-status git-sync git-feature-start git-feature-finish git-release-start git-release-finish
-.PHONY: git-hotfix-start git-hotfix-finish git-merge-to-develop git-merge-to-main
+.PHONY: git-hotfix-start git-hotfix-finish git-merge-to-develop git-merge-to-main version-info
+.PHONY: release-list release-delete tag-list tag-delete tag-rename github-trigger
 
 # Build variables
 BINARY_NAME=gitversion
 BUILD_DIR=build
 VERSION=$(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+GITVERSION_VERSION=$(shell ./gitversion -c gitversion.yml -o json 2>/dev/null | jq -r '.MajorMinorPatch // "1.0.0"' 2>/dev/null || echo "1.0.0")
 LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
 
 # Git flow variables
@@ -146,6 +148,16 @@ git-status:
 	@echo "$(BLUE)Remote branches:$(NC)"
 	@git branch -r
 
+# Show GitVersion information
+version-info:
+	@echo "$(BLUE)GitVersion Information:$(NC)"
+	@echo "$(GREEN)Current MajorMinorPatch version: $(GITVERSION_VERSION)$(NC)"
+	@echo "$(YELLOW)Full GitVersion output:$(NC)"
+	@./gitversion -c gitversion.yml
+	@echo ""
+	@echo "$(YELLOW)JSON format:$(NC)"
+	@./gitversion -c gitversion.yml -o json
+
 # Sync current branch with remote
 git-sync:
 	@echo "$(GREEN)Syncing $(CURRENT_BRANCH) with remote...$(NC)"
@@ -194,50 +206,55 @@ git-feature-finish:
 # Start a release branch from develop
 git-release-start:
 	@if [ -z "$(VERSION)" ]; then \
-		echo "$(RED)Usage: make git-release-start VERSION=x.y.z$(NC)"; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)Creating release branch: release/$(VERSION)$(NC)"
-	git checkout $(DEVELOP_BRANCH)
-	git pull origin $(DEVELOP_BRANCH)
-	git checkout -b release/$(VERSION)
-	@echo "Updating version in gitversion.yml..."
-	@if [ -f "gitversion.yml" ]; then \
-		sed -i.bak 's/next-version: .*/next-version: $(VERSION)/' gitversion.yml && rm gitversion.yml.bak; \
-	fi
-	git add gitversion.yml
-	git commit -m "Bump version to $(VERSION)"
-	git push -u origin release/$(VERSION)
-	@echo "$(GREEN)Release branch release/$(VERSION) created and pushed$(NC)"
+		echo "$(YELLOW)No VERSION specified, using GitVersion to calculate next version...$(NC)"; \
+		RELEASE_VERSION=$(GITVERSION_VERSION); \
+	else \
+		RELEASE_VERSION=$(VERSION); \
+	fi; \
+	echo "$(GREEN)Creating release branch: release/$$RELEASE_VERSION$(NC)"; \
+	git checkout $(DEVELOP_BRANCH); \
+	git pull origin $(DEVELOP_BRANCH); \
+	git checkout -b release/$$RELEASE_VERSION; \
+	echo "Updating version in gitversion.yml..."; \
+	if [ -f "gitversion.yml" ]; then \
+		sed -i.bak "s/next-version: .*/next-version: $$RELEASE_VERSION/" gitversion.yml && rm gitversion.yml.bak; \
+	fi; \
+	git add gitversion.yml; \
+	git commit -m "Bump version to $$RELEASE_VERSION"; \
+	git push -u origin release/$$RELEASE_VERSION; \
+	echo "$(GREEN)Release branch release/$$RELEASE_VERSION created and pushed$(NC)"
 
 # Finish a release branch (merge to main and develop, create tag)
 git-release-finish:
 	@if [ -z "$(VERSION)" ]; then \
-		echo "$(RED)Usage: make git-release-finish VERSION=x.y.z$(NC)"; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)Finishing release branch: release/$(VERSION)$(NC)"
-	@if [ "$(CURRENT_BRANCH)" != "release/$(VERSION)" ]; then \
-		git checkout release/$(VERSION); \
-	fi
-	git pull origin release/$(VERSION)
-	make quality
-	# Merge to main
-	git checkout $(DEFAULT_BRANCH)
-	git pull origin $(DEFAULT_BRANCH)
-	git merge --no-ff release/$(VERSION) -m "Merge release/$(VERSION) into $(DEFAULT_BRANCH)"
-	git tag -a v$(VERSION) -m "Release version $(VERSION)"
-	git push origin $(DEFAULT_BRANCH)
-	git push origin v$(VERSION)
-	# Merge back to develop
-	git checkout $(DEVELOP_BRANCH)
-	git pull origin $(DEVELOP_BRANCH)
-	git merge --no-ff $(DEFAULT_BRANCH) -m "Merge $(DEFAULT_BRANCH) back into $(DEVELOP_BRANCH)"
-	git push origin $(DEVELOP_BRANCH)
-	@echo "$(GREEN)Release $(VERSION) finished and tagged$(NC)"
-	@echo "$(YELLOW)To delete the release branch, run:$(NC)"
-	@echo "  git branch -d release/$(VERSION)"
-	@echo "  git push origin --delete release/$(VERSION)"
+		echo "$(YELLOW)No VERSION specified, using GitVersion to calculate version...$(NC)"; \
+		RELEASE_VERSION=$(GITVERSION_VERSION); \
+	else \
+		RELEASE_VERSION=$(VERSION); \
+	fi; \
+	echo "$(GREEN)Finishing release with version: $$RELEASE_VERSION$(NC)"; \
+	if [ "$(CURRENT_BRANCH)" != "release/$$RELEASE_VERSION" ]; then \
+		echo "$(YELLOW)Switching to release branch: release/$$RELEASE_VERSION$(NC)"; \
+		git checkout release/$$RELEASE_VERSION; \
+	fi; \
+	git pull origin release/$$RELEASE_VERSION; \
+	make quality; \
+	echo "$(GREEN)Merging to $(DEFAULT_BRANCH)...$(NC)"; \
+	git checkout $(DEFAULT_BRANCH); \
+	git pull origin $(DEFAULT_BRANCH); \
+	git merge --no-ff release/$$RELEASE_VERSION -m "Merge release/$$RELEASE_VERSION into $(DEFAULT_BRANCH)"; \
+	git tag -a v$$RELEASE_VERSION -m "Release version $$RELEASE_VERSION"; \
+	git push origin $(DEFAULT_BRANCH); \
+	git push origin v$$RELEASE_VERSION; \
+	echo "$(GREEN)Merging back to $(DEVELOP_BRANCH)...$(NC)"; \
+	git checkout $(DEVELOP_BRANCH); \
+	git pull origin $(DEVELOP_BRANCH); \
+	git merge --no-ff $(DEFAULT_BRANCH) -m "Merge $(DEFAULT_BRANCH) back into $(DEVELOP_BRANCH)"; \
+	git push origin $(DEVELOP_BRANCH); \
+	echo "$(GREEN)Release $$RELEASE_VERSION finished and tagged as v$$RELEASE_VERSION$(NC)"; \
+	echo "$(YELLOW)To delete the release branch, run:$(NC)"; \
+	echo "  git branch -d release/$$RELEASE_VERSION"; \
+	echo "  git push origin --delete release/$$RELEASE_VERSION"
 
 # Start a hotfix branch from main
 git-hotfix-start:
@@ -322,6 +339,112 @@ install-system: build
 	sudo cp $(BUILD_DIR)/$(BINARY_NAME) /usr/local/bin/
 
 # =============================================================================
+# RELEASE & TAG MANAGEMENT TARGETS
+# =============================================================================
+
+# List all GitHub releases
+release-list:
+	@echo "$(GREEN)Listing GitHub releases...$(NC)"
+	@if command -v gh >/dev/null 2>&1; then \
+		gh release list; \
+	else \
+		echo "$(RED)GitHub CLI (gh) not installed. Install with: brew install gh$(NC)"; \
+		exit 1; \
+	fi
+
+# Delete a GitHub release
+release-delete:
+	@if [ -z "$(TAG)" ]; then \
+		echo "$(RED)Usage: make release-delete TAG=tag-name$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Deleting GitHub release: $(TAG)$(NC)"
+	@if command -v gh >/dev/null 2>&1; then \
+		gh release delete "$(TAG)" --yes; \
+		echo "$(GREEN)Deleted release $(TAG)$(NC)"; \
+	else \
+		echo "$(RED)GitHub CLI (gh) not installed. Install with: brew install gh$(NC)"; \
+		exit 1; \
+	fi
+
+# List all git tags
+tag-list:
+	@echo "$(GREEN)Listing git tags...$(NC)"
+	@echo "$(BLUE)Local tags:$(NC)"
+	@git tag | sort -V
+	@echo ""
+	@echo "$(BLUE)Remote tags:$(NC)"
+	@git ls-remote --tags origin | sed 's/.*refs\/tags\///' | sort -V
+
+# Delete a git tag (local and remote)
+tag-delete:
+	@if [ -z "$(TAG)" ]; then \
+		echo "$(RED)Usage: make tag-delete TAG=tag-name$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Deleting tag: $(TAG)$(NC)"
+	@if git tag | grep -q "^$(TAG)$$"; then \
+		git tag -d "$(TAG)"; \
+		echo "$(GREEN)Deleted local tag $(TAG)$(NC)"; \
+	else \
+		echo "$(YELLOW)Local tag $(TAG) not found$(NC)"; \
+	fi
+	@if git ls-remote --tags origin | grep -q "refs/tags/$(TAG)$$"; then \
+		git push origin --delete "$(TAG)"; \
+		echo "$(GREEN)Deleted remote tag $(TAG)$(NC)"; \
+	else \
+		echo "$(YELLOW)Remote tag $(TAG) not found$(NC)"; \
+	fi
+
+# Rename a git tag (local and remote)
+tag-rename:
+	@if [ -z "$(OLD_TAG)" ] || [ -z "$(NEW_TAG)" ]; then \
+		echo "$(RED)Usage: make tag-rename OLD_TAG=old-name NEW_TAG=new-name$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Renaming tag $(OLD_TAG) to $(NEW_TAG)...$(NC)"
+	@if git tag | grep -q "^$(OLD_TAG)$$"; then \
+		git tag $(NEW_TAG) $(OLD_TAG); \
+		git tag -d $(OLD_TAG); \
+		git push origin $(NEW_TAG); \
+		git push origin --delete $(OLD_TAG); \
+		echo "$(GREEN)Successfully renamed tag $(OLD_TAG) to $(NEW_TAG)$(NC)"; \
+	else \
+		echo "$(RED)Tag $(OLD_TAG) not found locally$(NC)"; \
+		exit 1; \
+	fi
+
+# Trigger GitHub Actions workflow manually
+github-trigger:
+	@echo "$(GREEN)Manual GitHub Actions Trigger Helper$(NC)"
+	@echo "======================================"
+	@echo ""
+	@CURRENT_VERSION=$$(./gitversion -c gitversion.yml 2>/dev/null | tr -d '%' || echo "0.0.1"); \
+	echo "$(BLUE)Current Branch:$(NC) $(CURRENT_BRANCH)"; \
+	echo "$(BLUE)Current Version:$(NC) $$CURRENT_VERSION"; \
+	echo ""; \
+	echo "$(GREEN)To manually trigger GitHub Actions:$(NC)"; \
+	echo ""; \
+	if command -v gh >/dev/null 2>&1; then \
+		echo "$(YELLOW)Using GitHub CLI:$(NC)"; \
+		echo "gh workflow run build-and-release.yml \\"; \
+		echo "  --ref $(CURRENT_BRANCH) \\"; \
+		echo "  -f version=\"$$CURRENT_VERSION\" \\"; \
+		echo "  -f force_release=true"; \
+		echo ""; \
+		echo "$(YELLOW)Or via web interface:$(NC)"; \
+	else \
+		echo "$(YELLOW)Via web interface (GitHub CLI not available):$(NC)"; \
+	fi; \
+	echo "1. Go to: https://github.com/VirtuallyScott/gitversion-go/actions/workflows/build-and-release.yml"; \
+	echo "2. Click 'Run workflow'"; \
+	echo "3. Select branch: $(CURRENT_BRANCH)"; \
+	echo "4. Enter version: $$CURRENT_VERSION"; \
+	echo "5. Check 'Force create release'"; \
+	echo "6. Click 'Run workflow'"; \
+	echo ""
+
+# =============================================================================
 # UTILITY TARGETS
 # =============================================================================
 
@@ -372,6 +495,7 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Git Flow Targets:$(NC)"
 	@echo "  git-status         - Show current git status and branches"
+	@echo "  version-info       - Show GitVersion information and calculated versions"
 	@echo "  git-sync           - Sync current branch with remote"
 	@echo "  git-feature-start  - Start new feature branch (FEATURE=name)"
 	@echo "  git-feature-finish - Finish feature branch (FEATURE=name)"
@@ -382,6 +506,14 @@ help:
 	@echo "  git-merge-to-develop - Merge current branch to develop"
 	@echo "  git-merge-to-main    - Merge current branch to main (use with caution)"
 	@echo ""
+	@echo "$(YELLOW)Release & Tag Management:$(NC)"
+	@echo "  release-list        - List all GitHub releases"
+	@echo "  release-delete      - Delete GitHub release (TAG=name)"
+	@echo "  tag-list           - List all git tags (local and remote)"
+	@echo "  tag-delete         - Delete git tag (TAG=name)"
+	@echo "  tag-rename         - Rename git tag (OLD_TAG=old NEW_TAG=new)"
+	@echo "  github-trigger     - Show manual GitHub Actions trigger instructions"
+	@echo ""
 	@echo "$(YELLOW)Utility Targets:$(NC)"
 	@echo "  clean           - Clean build artifacts"
 	@echo "  help            - Show this help message"
@@ -391,3 +523,6 @@ help:
 	@echo "  make git-feature-finish FEATURE=awesome-feature"
 	@echo "  make git-release-start VERSION=1.2.0"
 	@echo "  make git-release-finish VERSION=1.2.0"
+	@echo "  make release-delete TAG=v1.0.0"
+	@echo "  make tag-delete TAG=v0.0.1-beta"
+	@echo "  make tag-rename OLD_TAG=v1.0.0-beta.37+37+861b6f2 NEW_TAG=v1.0.0-beta.37"
