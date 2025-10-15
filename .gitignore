@@ -20,11 +20,16 @@ coverage/
 /bin/
 /build/
 /dist/
-/pkg/
+# /pkg/ - commented out to allow our source packages
 .cache/
 go.work
 # /go/pkg/mod/
 # vendor/
+
+# Project-specific binaries (don't commit built executables)
+/gitversion
+gitversion-*
+*.bin
 
 # IDE and editor files
 *.elc
