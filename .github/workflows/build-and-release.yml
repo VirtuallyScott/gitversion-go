@@ -285,7 +285,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-  wait-for-builds:
+  wait_for_builds:
     name: Wait for all builds to complete
     runs-on: ubuntu-latest
     needs: [build]
@@ -299,8 +299,8 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [version, wait-for-builds]
-    if: needs.version.outputs.should_release == 'true' && (needs.wait-for-builds.result == 'success' || needs.wait-for-builds.result == 'failure')
+    needs: [version, wait_for_builds]
+    if: needs.version.outputs.should_release == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
