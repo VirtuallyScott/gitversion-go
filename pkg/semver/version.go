@@ -75,6 +75,74 @@ func (v *Version) IncrementPatch() {
 	v.Patch++
 }
 
+// Compare compares this version with another version
+// Returns: -1 if v < other, 0 if v == other, 1 if v > other
+func (v *Version) Compare(other *Version) int {
+	if other == nil {
+		return 1
+	}
+
+	// Compare major version
+	if v.Major < other.Major {
+		return -1
+	}
+	if v.Major > other.Major {
+		return 1
+	}
+
+	// Compare minor version
+	if v.Minor < other.Minor {
+		return -1
+	}
+	if v.Minor > other.Minor {
+		return 1
+	}
+
+	// Compare patch version
+	if v.Patch < other.Patch {
+		return -1
+	}
+	if v.Patch > other.Patch {
+		return 1
+	}
+
+	// Compare prerelease versions
+	// No prerelease > has prerelease
+	if v.PreRelease == "" && other.PreRelease != "" {
+		return 1
+	}
+	if v.PreRelease != "" && other.PreRelease == "" {
+		return -1
+	}
+
+	// Both have prerelease or both don't have prerelease
+	if v.PreRelease == other.PreRelease {
+		return 0
+	}
+
+	// Compare prerelease strings lexicographically
+	if v.PreRelease < other.PreRelease {
+		return -1
+	}
+	return 1
+}
+
+// GreaterThan returns true if this version is greater than the other version
+func (v *Version) GreaterThan(other *Version) bool {
+	return v.Compare(other) > 0
+}
+
+// Copy creates a deep copy of this version
+func (v *Version) Copy() *Version {
+	return &Version{
+		Major:      v.Major,
+		Minor:      v.Minor,
+		Patch:      v.Patch,
+		PreRelease: v.PreRelease,
+		Build:      v.Build,
+	}
+}
+
 func (v *Version) AssemblySemVer() string {
 	return fmt.Sprintf("%d.%d.%d.0", v.Major, v.Minor, v.Patch)
 }
