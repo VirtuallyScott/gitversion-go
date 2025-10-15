@@ -157,7 +157,13 @@ func (c *Calculator) applyBranchSpecificVersioning(version *semver.Version, bran
 		version.Build = fmt.Sprintf("%d+%s", commitCount, sha)
 	case Release:
 		if commitCount > 0 {
-			version.PreRelease = fmt.Sprintf("beta.%d", commitCount)
+			// Extract prerelease tag from branch name (e.g., release/0.0.2-alpha -> alpha)
+			releaseName := c.extractReleaseName(branch)
+			if releaseName != "" {
+				version.PreRelease = fmt.Sprintf("%s.%d", releaseName, commitCount)
+			} else {
+				version.PreRelease = fmt.Sprintf("beta.%d", commitCount)
+			}
 		}
 		version.Build = fmt.Sprintf("%d+%s", commitCount, sha)
 	case Hotfix:
@@ -180,4 +186,17 @@ func (c *Calculator) extractFeatureName(branch string) string {
 		return semver.SanitizeBranchName(parts[len(parts)-1])
 	}
 	return semver.SanitizeBranchName(branch)
+}
+
+func (c *Calculator) extractReleaseName(branch string) string {
+	parts := strings.Split(branch, "/")
+	if len(parts) > 1 {
+		versionPart := parts[len(parts)-1]
+		// Look for prerelease tag after a dash (e.g., "0.0.2-alpha" -> "alpha")  
+		if dashIndex := strings.LastIndex(versionPart, "-"); dashIndex != -1 && dashIndex < len(versionPart)-1 {
+			prerelease := versionPart[dashIndex+1:]
+			return semver.SanitizeBranchName(prerelease)
+		}
+	}
+	return ""
 }

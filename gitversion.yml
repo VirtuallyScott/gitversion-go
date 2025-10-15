@@ -1,0 +1,28 @@
+next-version: "0.0.2-alpha"
+branches:
+  main:
+    increment: "Patch"
+    tag: ""
+    regex: "^master$|^main$"
+  develop:
+    increment: "Minor"
+    tag: "alpha"
+    regex: "^develop$"
+  feature:
+    increment: "Minor"
+    tag: "{BranchName}"
+    regex: "^features?[/-]"
+  release:
+    increment: "None"
+    tag: "{BranchName}"
+    regex: "^releases?[/-]"
+  hotfix:
+    increment: "Patch"
+    tag: "hotfix"
+    regex: "^hotfix(es)?[/-]"
+ignore:
+  sha: []
+merge-message-formats: {}
+commit-message-incrementing:
+  enabled: true
+  increment-mode: "Enabled"
