@@ -30,80 +30,126 @@ const (
 )
 
 type Calculator struct {
-	repo   *git.Repository
-	config *config.Config
+	repo            *git.Repository
+	config          *config.Config
+	strategyManager *StrategyManager
 }
 
 func NewCalculator(repo *git.Repository, cfg *config.Config) *Calculator {
 	return &Calculator{
-		repo:   repo,
-		config: cfg,
+		repo:            repo,
+		config:          cfg,
+		strategyManager: NewStrategyManager(repo, cfg),
 	}
 }
 
 func (c *Calculator) CalculateVersion(branch string, workflow WorkflowType, forceIncrement string, nextVersion string) (*semver.Version, error) {
-	latestTag, err := c.repo.GetLatestTag()
+	// Get current branch if not provided
+	if branch == "" {
+		currentBranch, err := c.repo.GetCurrentBranch()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current branch: %w", err)
+		}
+		branch = currentBranch
+	}
+
+	// Get current commit
+	currentCommit, err := c.repo.GetSHA()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get latest tag: %w", err)
+		return nil, fmt.Errorf("failed to get current commit: %w", err)
 	}
 
-	var version *semver.Version
-	if latestTag != "" {
-		version, err = semver.Parse(latestTag)
-		if err != nil {
-			version = &semver.Version{Major: 0, Minor: 0, Patch: 0}
-		}
-	} else {
-		version = &semver.Version{Major: 0, Minor: 0, Patch: 0}
+	// Get branch configuration
+	branchConfig := c.config.GetBranchConfiguration(branch)
+	if branchConfig == nil {
+		// Fall back to default configuration based on branch type
+		branchType := c.getBranchType(branch, workflow)
+		branchConfig = c.getDefaultBranchConfig(branchType)
 	}
 
-	branchType := c.getBranchType(branch, workflow)
+	// Use the strategies system for GitTools/GitVersion compatibility
+	var strategiesMask VersionStrategies
 
-	// If nextVersion is provided, use it as the base but don't increment further
+	// Add configured version strategy if next version is provided
 	if nextVersion != "" {
-		version, err = semver.Parse(nextVersion)
-		if err != nil {
-			return nil, fmt.Errorf("invalid next-version format: %s", nextVersion)
-		}
-	} else {
-		// Only apply increments if nextVersion is not specified
-		var increment git.IncrementType
-		if forceIncrement != "" {
-			switch forceIncrement {
-			case "major":
-				increment = git.IncrementMajor
-			case "minor":
-				increment = git.IncrementMinor
-			case "patch":
-				increment = git.IncrementPatch
-			default:
-				increment = git.IncrementPatch
-			}
-		} else {
-			increment, err = c.repo.DetectVersionIncrement(latestTag)
-			if err != nil {
-				return nil, fmt.Errorf("failed to detect version increment: %w", err)
-			}
-		}
+		strategiesMask |= ConfiguredNextVersion
+	}
 
-		switch increment {
-		case git.IncrementMajor:
+	// Add default strategies
+	strategiesMask |= TaggedCommit | MergeMessage | Fallback
+
+	// Create version context for strategies
+	ctx := &VersionContext{
+		Repository:    c.repo,
+		Config:        c.config,
+		CurrentBranch: branch,
+		CurrentCommit: currentCommit,
+		BranchConfig:  branchConfig,
+		NextVersion:   nextVersion,
+		Strategies:    strategiesMask,
+	}
+
+	// Calculate base versions using strategies
+	baseVersions, err := c.strategyManager.GetBaseVersions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get base versions: %w", err)
+	}
+
+	// Find the highest base version
+	var baseVersion *BaseVersion
+	for _, bv := range baseVersions {
+		if baseVersion == nil || bv.SemanticVersion.GreaterThan(baseVersion.SemanticVersion) {
+			baseVersion = bv
+		}
+	}
+
+	if baseVersion == nil {
+		// Fallback to 0.0.0 if no base version found
+		version := &semver.Version{Major: 0, Minor: 0, Patch: 0}
+		baseVersion = &BaseVersion{
+			Source:            "fallback",
+			SemanticVersion:   version,
+			ShouldIncrement:   true,
+			BaseVersionSource: "fallback",
+		}
+	}
+
+	// Apply increments based on configuration
+	version := baseVersion.SemanticVersion.Copy()
+
+	// Handle force increment
+	if forceIncrement != "" {
+		switch forceIncrement {
+		case "major":
 			version.IncrementMajor()
-		case git.IncrementMinor:
+		case "minor":
 			version.IncrementMinor()
-		case git.IncrementPatch:
+		case "patch":
+			version.IncrementPatch()
+		}
+	} else if branchConfig.PreventIncrement == nil || (!branchConfig.PreventIncrement.OfMergedBranch && !branchConfig.PreventIncrement.WhenCurrentCommitTagged) {
+		// Apply default increment if not prevented
+		increment := branchConfig.Increment
+		switch increment {
+		case config.IncrementMajor:
+			version.IncrementMajor()
+		case config.IncrementMinor:
+			version.IncrementMinor()
+		case config.IncrementPatch, "":
 			version.IncrementPatch()
 		}
 	}
 
-	commitCount, err := c.repo.GetCommitCountSinceTag(latestTag)
+	// Apply branch-specific versioning (prerelease, build metadata)
+	branchType := c.getBranchType(branch, workflow)
+	commitCount, err := c.repo.GetCommitCountSinceTag("")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get commit count: %w", err)
+		commitCount = 0
 	}
 
 	sha, err := c.repo.GetShortSHA()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SHA: %w", err)
+		sha = "unknown"
 	}
 
 	c.applyBranchSpecificVersioning(version, branch, branchType, commitCount, sha)
@@ -201,4 +247,93 @@ func (c *Calculator) extractReleaseName(branch string) string {
 		}
 	}
 	return ""
+}
+
+func (c *Calculator) getDefaultBranchConfig(branchType BranchType) *config.BranchConfiguration {
+	switch branchType {
+	case Main:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementPatch,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: false,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 "^(master|main)$",
+			SourceBranches:        []string{},
+			IsMainBranch:          true,
+			PreReleaseWeight:      55000,
+			TracksReleaseBranches: false,
+		}
+	case Develop:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementMinor,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: false,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 "^develop$",
+			SourceBranches:        []string{},
+			IsMainBranch:          false,
+			PreReleaseWeight:      0,
+			TracksReleaseBranches: true,
+		}
+	case Feature:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementPatch,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: false,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 "^feature/.+",
+			SourceBranches:        []string{"develop", "main", "master"},
+			IsMainBranch:          false,
+			PreReleaseWeight:      30000,
+			TracksReleaseBranches: false,
+		}
+	case Release:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementPatch,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: true,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 "^release/.+",
+			SourceBranches:        []string{"develop"},
+			IsMainBranch:          false,
+			PreReleaseWeight:      25000,
+			TracksReleaseBranches: false,
+		}
+	case Hotfix:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementPatch,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: false,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 "^hotfix/.+",
+			SourceBranches:        []string{"main", "master"},
+			IsMainBranch:          false,
+			PreReleaseWeight:      40000,
+			TracksReleaseBranches: false,
+		}
+	default:
+		return &config.BranchConfiguration{
+			Increment: config.IncrementPatch,
+			PreventIncrement: &config.PreventIncrementConfiguration{
+				OfMergedBranch:          false,
+				WhenCurrentCommitTagged: false,
+				WhenBranchMerged:        false,
+			},
+			Regex:                 ".*",
+			SourceBranches:        []string{},
+			IsMainBranch:          false,
+			PreReleaseWeight:      30000,
+			TracksReleaseBranches: false,
+		}
+	}
 }

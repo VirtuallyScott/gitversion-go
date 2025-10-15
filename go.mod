@@ -4,10 +4,13 @@ go 1.21
 
 require (
 	github.com/VirtuallyScott/gitversion-go/internal/version v0.0.0
-	github.com/VirtuallyScott/gitversion-go/pkg/config v0.0.0
 	github.com/VirtuallyScott/gitversion-go/pkg/gitversion v0.0.0
-	github.com/VirtuallyScott/gitversion-go/pkg/semver v0.0.0
-	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/VirtuallyScott/gitversion-go/pkg/config v0.0.0 // indirect
+	github.com/VirtuallyScott/gitversion-go/pkg/semver v0.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace (
