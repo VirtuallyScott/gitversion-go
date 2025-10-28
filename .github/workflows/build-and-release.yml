@@ -50,7 +50,7 @@ jobs:
       - name: Build GitVersion-Go
         run: |
           # Build directly without tidying to avoid external dependency resolution
-          go build -mod=readonly -o gitversion ./gitversion
+          go build -mod=readonly -o gitversion-tool ./gitversion
         if: github.event.inputs.version == ''
 
       - name: Calculate Version
@@ -85,10 +85,10 @@ jobs:
             else
               echo "Building gitversion to calculate version..."
               go mod tidy
-              go build -o gitversion ./gitversion
+              go build -o gitversion-tool ./gitversion
 
-              VERSION=$(./gitversion)
-              VERSION_JSON=$(./gitversion --output json)
+              VERSION=$(./gitversion-tool)
+              VERSION_JSON=$(./gitversion-tool --output json)
             fi
 
             echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -329,7 +329,7 @@ jobs:
       - name: Build GitVersion for Tagging (only if needed)
         run: |
           go mod tidy
-          go build -o gitversion ./gitversion
+          go build -o gitversion-tool ./gitversion
         if: github.event.inputs.version == ''
 
       - name: Create Git Tag
