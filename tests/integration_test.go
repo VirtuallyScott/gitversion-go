@@ -26,7 +26,7 @@ func TestGitVersionCLI(t *testing.T) {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
 
-	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./cmd")
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, "./gitversion")
 	buildCmd.Dir = projectRoot
 	if err := buildCmd.Run(); err != nil {
 		t.Fatalf("Failed to build binary: %v", err)

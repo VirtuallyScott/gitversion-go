@@ -1,0 +1,75 @@
+# GitLeaks configuration for Go project security scanning
+
+[extend]
+# Use default rules
+useDefault = true
+
+[[rules]]
+description = "AWS Access Key ID"
+id = "aws-access-key-id"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+description = "AWS Secret Access Key"
+id = "aws-secret-access-key"  
+regex = '''[0-9a-zA-Z/+]{40}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+description = "GitHub Personal Access Token"
+id = "github-pat"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+description = "GitHub OAuth Token"
+id = "github-oauth"
+regex = '''gho_[a-zA-Z0-9]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+description = "Google API Key"
+id = "google-api-key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["key", "Google"]
+
+[[rules]]
+description = "OpenAI API Key"
+id = "openai-api-key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+tags = ["key", "OpenAI"]
+
+[[rules]]
+description = "Generic API Key"
+id = "generic-api-key"
+regex = '''(?i)(api[_-]?key|apikey)\s*[:=]\s*['""][a-zA-Z0-9\-_]{16,}['"]'''
+tags = ["key", "API"]
+
+[[rules]]
+description = "Generic Secret"
+id = "generic-secret"
+regex = '''(?i)(secret|password|passwd|pwd)\s*[:=]\s*['""][a-zA-Z0-9\-_!@#$%^&*()]{8,}['"]'''
+tags = ["secret"]
+
+# Allowlist certain files that may contain example credentials
+[allowlist]
+description = "Allowlist certain patterns"
+files = [
+    '''\.md$''',              # Markdown documentation
+    '''\.example$''',         # Example files
+    '''\.template$''',        # Template files
+    '''\.sample$''',          # Sample files
+    '''test.*\.go$''',        # Test files (be careful with this)
+]
+
+# Allowlist certain patterns that are likely false positives
+regexes = [
+    '''example''',            # Example credentials
+    '''dummy''',              # Dummy/placeholder values
+    '''test''',               # Test credentials
+    '''placeholder''',        # Placeholder text
+    '''YOUR_.*_HERE''',       # Template placeholders
+    '''<.*>''',               # Template brackets
+    '''\$\{.*\}''',           # Environment variable placeholders
+]

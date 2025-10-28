@@ -50,7 +50,7 @@ jobs:
       - name: Build GitVersion-Go
         run: |
           # Build directly without tidying to avoid external dependency resolution
-          go build -mod=readonly -o gitversion ./cmd
+          go build -mod=readonly -o gitversion ./gitversion
         if: github.event.inputs.version == ''
 
       - name: Calculate Version
@@ -85,7 +85,7 @@ jobs:
             else
               echo "Building gitversion to calculate version..."
               go mod tidy
-              go build -o gitversion ./cmd
+              go build -o gitversion ./gitversion
 
               VERSION=$(./gitversion)
               VERSION_JSON=$(./gitversion --output json)
@@ -202,7 +202,7 @@ jobs:
           go build \
             -ldflags="-s -w -X main.version=$VERSION -X main.commit=${{ github.sha }} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o dist/${{ matrix.binary_name }} \
-            ./cmd
+            ./gitversion
 
           # Verify binary
           file dist/${{ matrix.binary_name }}
@@ -329,7 +329,7 @@ jobs:
       - name: Build GitVersion for Tagging (only if needed)
         run: |
           go mod tidy
-          go build -o gitversion ./cmd
+          go build -o gitversion ./gitversion
         if: github.event.inputs.version == ''
 
       - name: Create Git Tag

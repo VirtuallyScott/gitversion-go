@@ -100,11 +100,3 @@ func (gv *GitVersion) logDebug(format string, args ...interface{}) {
 		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
 	}
 }
-
-func (gv *GitVersion) logError(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "[ERROR] "+format+"\n", args...)
-}
-
-func (gv *GitVersion) logInfo(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "[INFO] "+format+"\n", args...)
-}
