@@ -12,7 +12,7 @@ tags = ["key", "AWS"]
 
 [[rules]]
 description = "AWS Secret Access Key"
-id = "aws-secret-access-key"  
+id = "aws-secret-access-key"
 regex = '''[0-9a-zA-Z/+]{40}'''
 tags = ["key", "AWS"]
 
