@@ -28,6 +28,7 @@ go.work
 
 # Project-specific binaries (don't commit built executables)
 /gitversion
+!gitversion/
 gitversion-*
 *.bin
 
