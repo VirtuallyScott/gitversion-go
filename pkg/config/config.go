@@ -42,6 +42,7 @@ type BranchConfiguration struct {
 	Mode                  DeploymentMode                 `json:"mode" yaml:"mode"`
 	Label                 string                         `json:"label" yaml:"label"`
 	Increment             IncrementStrategy              `json:"increment" yaml:"increment"`
+	Tag                   string                         `json:"tag" yaml:"tag"`
 	PreventIncrement      *PreventIncrementConfiguration `json:"prevent-increment" yaml:"prevent-increment"`
 	TrackMergeTarget      bool                           `json:"track-merge-target" yaml:"track-merge-target"`
 	TrackMergeMessage     bool                           `json:"track-merge-message" yaml:"track-merge-message"`
